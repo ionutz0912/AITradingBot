@@ -2,6 +2,8 @@
 
 *A humble template for AI-powered cryptocurrency trading bot using simple LLM-based market analysis.*
 
+---
+
 ## 🛠️ Setup
 
 ```bash
@@ -23,6 +25,8 @@ EXCHANGE_API_KEY=your_bitunix_api_key_here
 EXCHANGE_API_SECRET=your_bitunix_api_secret_here
 ```
 
+---
+
 ## ⏰ Automated Trading (Cron Job)
 
 To run the bot daily at midnight UTC:
@@ -37,16 +41,20 @@ Add this line:
 0 0 * * * cd /path/to/AITradingBot && bash batch_runner.sh >> cron.log 2>&1
 ```
 
+---
+
 ## ✅ Requirements
 
 Python 3.12+
 See `requirements.txt` for specific Python packages
 
+---
 
 ## 📃 License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/RobotTraders/AITradingBot/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
+---
 
 ## ⚠️ Disclaimer
 
