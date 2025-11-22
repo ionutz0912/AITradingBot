@@ -30,7 +30,7 @@ FORWARD_TESTING_CONFIG = None
 # }
 
 # Discord Notification Configuration
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")  # Get from .env or empty string
+DISCORD_WEBHOOK_URL = "your_discord_webhook_here"
 DISCORD_INCLUDE_REASON = True  # Set to False to exclude AI reasoning from notifications
 
 PROMPT = f"""
