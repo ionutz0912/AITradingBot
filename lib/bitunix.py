@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import hashlib
 import time
@@ -22,14 +24,14 @@ class BitunixError(Exception):
     pass
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BitunixResponse(Generic[T]):
     code: int
     msg: str
     data: T
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Position:
     positionId: str
     symbol: str

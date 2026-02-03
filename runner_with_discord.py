@@ -30,7 +30,7 @@ FORWARD_TESTING_CONFIG = None
 # }
 
 # Discord Notification Configuration
-DISCORD_WEBHOOK_URL = "your_discord_webhook_here"
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 DISCORD_INCLUDE_REASON = True  # Set to False to exclude AI reasoning from notifications
 
 PROMPT = f"""
@@ -51,7 +51,16 @@ Return the result by calling the provided function/tool with your outlook and re
 """.strip()
 
 # ===================== PREP =====================
-LLM_API_KEY = os.environ.get("LLM_API_KEY")
+# AI Provider Configuration
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "anthropic").lower()
+AI_API_KEYS = {
+    "anthropic": os.environ.get("ANTHROPIC_API_KEY"),
+    "xai": os.environ.get("XAI_API_KEY"),
+    "grok": os.environ.get("XAI_API_KEY"),  # Alias for xai
+    "deepseek": os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_API_KEY"),  # Backward compat
+}
+AI_API_KEY = AI_API_KEYS.get(AI_PROVIDER)
+
 EXCHANGE_API_KEY = os.environ.get("EXCHANGE_API_KEY")
 EXCHANGE_API_SECRET = os.environ.get("EXCHANGE_API_SECRET")
 
@@ -78,10 +87,11 @@ if DISCORD_WEBHOOK_URL:
 
 #  Call AI to get interpretation
 try:
-    outlook = ai.send_request(PROMPT, CRYPTO, LLM_API_KEY)
+    ai.init_provider(AI_PROVIDER, AI_API_KEY)
+    outlook = ai.send_request(PROMPT, CRYPTO)
     interpretation = outlook.interpretation
     logging.info(f"AI Interpretation: {interpretation}")
-except (ai.AIResponseError, Exception) as e:
+except (ai.AIResponseError, ai.AIProviderError, Exception) as e:
     logging.warning(f"AI request failed, defaulting to Neutral: {e}")
     interpretation = "Neutral"
     outlook = None
@@ -112,43 +122,43 @@ try:
     exchange.set_margin_mode(SYMBOL, MARGIN_MODE)
     exchange.set_leverage(SYMBOL, LEVERAGE)
 
-    match (interpretation, current_position):
-        # Bullish cases
-        case ("Bullish", None):
-            logging.info("Bullish signal: Opening long position")
-            custom_helpers.open_position(exchange, SYMBOL, direction="buy",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    # Bullish cases
+    if interpretation == "Bullish" and current_position is None:
+        logging.info("Bullish signal: Opening long position")
+        custom_helpers.open_position(exchange, SYMBOL, direction="buy",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bullish", "sell"):
-            logging.info("Bullish signal: Closing short, opening long")
-            exchange.flash_close_position(position.positionId)
-            custom_helpers.open_position(exchange, SYMBOL, direction="buy",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    elif interpretation == "Bullish" and current_position == "sell":
+        logging.info("Bullish signal: Closing short, opening long")
+        exchange.flash_close_position(position.positionId)
+        custom_helpers.open_position(exchange, SYMBOL, direction="buy",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bullish", "buy"):
-            logging.info("Bullish signal: Already in long position, holding")
+    elif interpretation == "Bullish" and current_position == "buy":
+        logging.info("Bullish signal: Already in long position, holding")
 
-        # Bearish cases
-        case ("Bearish", None):
-            logging.info("Bearish signal: Opening short position")
-            custom_helpers.open_position(exchange, SYMBOL, direction="sell",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    # Bearish cases
+    elif interpretation == "Bearish" and current_position is None:
+        logging.info("Bearish signal: Opening short position")
+        custom_helpers.open_position(exchange, SYMBOL, direction="sell",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bearish", "buy"):
-            logging.info("Bearish signal: Closing long, opening short")
-            exchange.flash_close_position(position.positionId)
-            custom_helpers.open_position(exchange, SYMBOL, direction="sell",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    elif interpretation == "Bearish" and current_position == "buy":
+        logging.info("Bearish signal: Closing long, opening short")
+        exchange.flash_close_position(position.positionId)
+        custom_helpers.open_position(exchange, SYMBOL, direction="sell",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bearish", "sell"):
-            logging.info("Bearish signal: Already in short position, holding")
+    elif interpretation == "Bearish" and current_position == "sell":
+        logging.info("Bearish signal: Already in short position, holding")
 
-        # Neutral cases
-        case ("Neutral", "buy" | "sell"):
-            logging.info(f"Neutral signal: Closing {current_position} position")
-            exchange.flash_close_position(position.positionId)
-        case ("Neutral", None):
-            logging.info("Neutral signal: No position open, doing nothing")
+    # Neutral cases
+    elif interpretation == "Neutral" and current_position in ("buy", "sell"):
+        logging.info(f"Neutral signal: Closing {current_position} position")
+        exchange.flash_close_position(position.positionId)
+
+    elif interpretation == "Neutral" and current_position is None:
+        logging.info("Neutral signal: No position open, doing nothing")
 
     logging.info("=== Run Completed ===")
 
