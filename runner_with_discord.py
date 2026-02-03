@@ -2,20 +2,25 @@ import os
 import logging
 from dotenv import load_dotenv
 
-from lib import ai, custom_helpers, ForwardTester, BitunixFutures, BitunixError, DiscordNotifier
+from lib import (
+    ai, custom_helpers, ForwardTester,
+    BitunixFutures, BitunixError,
+    CoinbaseAdvanced, CoinbaseError,
+    DiscordNotifier
+)
 
 load_dotenv()
 
 # ===================== CONFIGURATION =====================
 RUN_NAME = "run_btc_template_prompt"
 CRYPTO = "Bitcoin"
-SYMBOL = "BTCUSDT"
+SYMBOL = "BTCUSDT"  # Will be converted to "BTC-USD" for Coinbase
 LEVERAGE = 1
 MARGIN_MODE = "ISOLATION"
 
 # Position Size Configuration
 # POSITION_SIZE = "10%"  # Use 10% of capital per trade
-POSITION_SIZE = 20  # Use 20 USDT per trade
+POSITION_SIZE = 20  # Use 20 USD per trade
 
 # Stop Loss Configuration (LIVE TRADING ONLY - not supported in forward testing yet)
 STOP_LOSS_PERCENT = 10  # 10% stop-loss from entry price
@@ -61,20 +66,36 @@ AI_API_KEYS = {
 }
 AI_API_KEY = AI_API_KEYS.get(AI_PROVIDER)
 
-EXCHANGE_API_KEY = os.environ.get("EXCHANGE_API_KEY")
-EXCHANGE_API_SECRET = os.environ.get("EXCHANGE_API_SECRET")
+# Exchange Provider Configuration
+EXCHANGE_PROVIDER = os.environ.get("EXCHANGE_PROVIDER", "coinbase").lower()
+
+# Coinbase credentials
+COINBASE_API_KEY = os.environ.get("COINBASE_API_KEY")
+COINBASE_API_SECRET = os.environ.get("COINBASE_API_SECRET")
+
+# Bitunix credentials (legacy)
+BITUNIX_API_KEY = os.environ.get("BITUNIX_API_KEY") or os.environ.get("EXCHANGE_API_KEY")
+BITUNIX_API_SECRET = os.environ.get("BITUNIX_API_SECRET") or os.environ.get("EXCHANGE_API_SECRET")
 
 # ===================== MAIN EXECUTION =====================
 custom_helpers.configure_logger(RUN_NAME)
 logging.info("=== Run Started ===")
 
-# Initialize exchange client (real or forward testing)
+# Initialize exchange client
 if FORWARD_TESTING_CONFIG is not None:
     exchange = ForwardTester(FORWARD_TESTING_CONFIG)
     logging.info("Forward testing mode enabled")
+    is_spot_exchange = False  # Forward tester supports shorting
+elif EXCHANGE_PROVIDER == "coinbase":
+    exchange = CoinbaseAdvanced(COINBASE_API_KEY, COINBASE_API_SECRET)
+    logging.info("Live trading mode: Coinbase")
+    is_spot_exchange = True  # Coinbase spot doesn't support shorting
+elif EXCHANGE_PROVIDER == "bitunix":
+    exchange = BitunixFutures(BITUNIX_API_KEY, BITUNIX_API_SECRET)
+    logging.info("Live trading mode: Bitunix")
+    is_spot_exchange = False  # Bitunix futures supports shorting
 else:
-    exchange = BitunixFutures(EXCHANGE_API_KEY, EXCHANGE_API_SECRET)
-    logging.info("Live trading mode enabled")
+    raise ValueError(f"Unknown exchange provider: {EXCHANGE_PROVIDER}")
 
 # Initialize Discord notifier if webhook URL is provided
 discord_notifier = None
@@ -85,7 +106,7 @@ if DISCORD_WEBHOOK_URL:
     except ValueError as e:
         logging.warning(f"Discord notifier initialization failed: {e}")
 
-#  Call AI to get interpretation
+# Call AI to get interpretation
 try:
     ai.init_provider(AI_PROVIDER, AI_API_KEY)
     outlook = ai.send_request(PROMPT, CRYPTO)
@@ -116,7 +137,7 @@ try:
     position = exchange.get_pending_positions(symbol=SYMBOL)
     current_position = position.side.lower() if position else None
     logging.info(f"Current Position: {current_position}")
-    logging.info(f"Available Capital: {exchange.get_account_balance('USDT')} USDT")
+    logging.info(f"Available Capital: {exchange.get_account_balance('USDT')} USD")
 
     # Execute trading actions
     exchange.set_margin_mode(SYMBOL, MARGIN_MODE)
@@ -139,15 +160,24 @@ try:
 
     # Bearish cases
     elif interpretation == "Bearish" and current_position is None:
-        logging.info("Bearish signal: Opening short position")
-        custom_helpers.open_position(exchange, SYMBOL, direction="sell",
-                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+        if is_spot_exchange:
+            # Spot exchanges don't support shorting
+            logging.info("Bearish signal: Spot exchange - no position to close, staying flat")
+        else:
+            logging.info("Bearish signal: Opening short position")
+            custom_helpers.open_position(exchange, SYMBOL, direction="sell",
+                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
     elif interpretation == "Bearish" and current_position == "buy":
-        logging.info("Bearish signal: Closing long, opening short")
-        exchange.flash_close_position(position.positionId)
-        custom_helpers.open_position(exchange, SYMBOL, direction="sell",
-                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+        if is_spot_exchange:
+            # Spot exchange: just close the long, can't short
+            logging.info("Bearish signal: Spot exchange - closing long position (no shorting)")
+            exchange.flash_close_position(position.positionId)
+        else:
+            logging.info("Bearish signal: Closing long, opening short")
+            exchange.flash_close_position(position.positionId)
+            custom_helpers.open_position(exchange, SYMBOL, direction="sell",
+                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
     elif interpretation == "Bearish" and current_position == "sell":
         logging.info("Bearish signal: Already in short position, holding")
@@ -162,8 +192,15 @@ try:
 
     logging.info("=== Run Completed ===")
 
-except (BitunixError, Exception) as e:
+except (BitunixError, CoinbaseError, Exception) as e:
     logging.warning(f"Exchange operation failed, stopping execution: {e}")
+
+    # Send error notification if Discord is configured
+    if discord_notifier:
+        try:
+            discord_notifier.send_error(RUN_NAME, str(e))
+        except Exception:
+            pass
 
     # SAFETY: Flash close any open position on error
     try:
