@@ -78,9 +78,13 @@ AI-powered cryptocurrency trading bot with multi-provider AI support (Claude, Gr
 - Graceful degradation for optional features (notifications, dashboard)
 
 ### Testing
-- Test files in `tests/` directory
+- Test files in `tests/` directory with 90%+ code coverage
 - Run with `python -m pytest tests/`
-- Forward testing mode for safe trade simulation
+- Use `pytest --cov=lib --cov=dashboard --cov-report=html` for coverage
+- All tests use mocked external APIs (no real API calls)
+- In-memory SQLite database for fast test execution
+- Comprehensive fixtures available in `tests/conftest.py`
+- See `tests/README.md` for detailed testing documentation
 
 ## Common Tasks
 
@@ -89,18 +93,21 @@ AI-powered cryptocurrency trading bot with multi-provider AI support (Claude, Gr
 2. Update `AI_PROVIDERS` dict
 3. Add API key handling in `.env.template`
 4. Update config validation
+5. **Add tests in `tests/lib/test_ai.py`** (use existing provider tests as template)
 
 ### Adding a New Exchange
 1. Create client module in `lib/` (follow `coinbase_client.py` pattern)
 2. Implement required methods: `get_balance()`, `place_order()`, `get_position()`
 3. Add to runner switching logic
 4. Update config options
+5. **Add tests in `tests/lib/test_[exchange_name].py`** (mock SDK calls)
 
 ### Adding Notification Channel
 1. Create notifier class in `lib/` (follow `telegram_notifications.py` pattern)
 2. Implement `send_notification()`, `send_trade_opened()`, `send_trade_closed()`
 3. Add config options in `lib/config.py`
 4. Integrate in `runner_multi.py`
+5. **Add tests in `tests/lib/test_[notifier_name].py`** (mock API calls)
 
 ### Dashboard Development
 1. Routes in `dashboard/routes/` (api.py for JSON, views.py for HTML)

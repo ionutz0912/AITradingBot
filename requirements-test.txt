@@ -1,0 +1,28 @@
+# Testing dependencies for AI Trading Bot
+
+# Core testing framework
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-asyncio==0.23.2
+
+# HTTP mocking
+responses==0.24.1
+requests-mock==1.11.0
+
+# Database testing
+pytest-postgresql==5.0.0
+
+# Flask testing
+flask-testing==0.8.1
+
+# Code quality
+pytest-flake8==1.1.1
+pytest-mypy==0.10.3
+
+# Test data generation
+faker==20.1.0
+factory-boy==3.3.0
+
+# Coverage
+coverage[toml]==7.3.2

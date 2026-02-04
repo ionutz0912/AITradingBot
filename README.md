@@ -347,6 +347,44 @@ tracker.export_to_csv()
 
 ---
 
+## Testing
+
+The project includes a comprehensive test suite with 90%+ code coverage.
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=lib --cov=dashboard --cov-report=html
+
+# Run specific test file
+pytest tests/lib/test_config.py -v
+
+# Run only unit tests
+pytest -m unit
+```
+
+### Test Coverage
+
+- **lib/config.py**: 100% - Configuration management
+- **lib/ai.py**: 95% - Multi-provider AI integration
+- **lib/database.py**: 95% - Database operations
+- **lib/market_data.py**: 90% - Market data fetching
+- **lib/coinbase_client.py**: 85% - Coinbase API client
+- **lib/forward_tester.py**: 85% - Paper trading simulation
+- **lib/performance_tracker.py**: 90% - Performance metrics
+- **lib/telegram_notifications.py**: 85% - Telegram notifications
+
+See `tests/README.md` for detailed testing documentation.
+
+---
+
 ## Directory Structure
 
 ```
@@ -358,6 +396,8 @@ AITradingBot/
 ├── health_check.py          # API connectivity checker
 ├── batch_runner.sh          # Cron job script
 ├── requirements.txt         # Python dependencies
+├── requirements-test.txt    # Test dependencies
+├── pytest.ini               # Test configuration
 ├── .env.template            # Environment template
 ├── lib/
 │   ├── ai.py                # Multi-provider AI module
@@ -391,6 +431,12 @@ AITradingBot/
 │           ├── dashboard.js      # Main dashboard JS
 │           ├── simulations.js    # Simulations page JS
 │           └── notifications.js  # Notifications page JS
+├── tests/                   # Test suite
+│   ├── conftest.py          # Test fixtures
+│   ├── README.md            # Testing documentation
+│   ├── lib/                 # Library module tests
+│   ├── dashboard/           # Dashboard tests
+│   └── integration/         # Integration tests
 ├── configs/                 # Configuration files
 ├── data/                    # SQLite database directory
 ├── logs/                    # Execution logs
