@@ -19,20 +19,20 @@ MARGIN_MODE = "ISOLATION"
 
 # Position Size Configuration
 # POSITION_SIZE = "10%"  # Use 10% of capital per trade
-POSITION_SIZE = 20  # Use 20 USD per trade
+POSITION_SIZE = 5  # Use 5 USD per trade
 
 # Stop Loss Configuration (LIVE TRADING ONLY - not supported in forward testing yet)
 STOP_LOSS_PERCENT = 10  # 10% stop-loss from entry price
 # STOP_LOSS_PERCENT = None  # Disabled
 
 # Forward Testing Configuration
-FORWARD_TESTING_CONFIG = {
-    "run_name": RUN_NAME,
-    "initial_capital": 10000,
-    "fees": 0.0006,  # 0.06% taker fee
-}
+# FORWARD_TESTING_CONFIG = {
+#     "run_name": RUN_NAME,
+#     "initial_capital": 10000,
+#     "fees": 0.0006,  # 0.06% taker fee
+# }
 # Set to None for live trading:
-# FORWARD_TESTING_CONFIG = None
+FORWARD_TESTING_CONFIG = None
 
 PROMPT = f"""
 You are a cryptocurrency market analyst AI.

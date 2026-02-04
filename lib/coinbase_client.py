@@ -81,10 +81,14 @@ class CoinbaseAdvanced:
 
         Args:
             api_key: Coinbase API key
-            api_secret: Coinbase API secret
+            api_secret: Coinbase API secret (PEM format, can have escaped newlines)
         """
         if not api_key or not api_secret:
             raise CoinbaseError("Coinbase API key and secret are required")
+
+        # Convert escaped newlines to actual newlines (for .env file compatibility)
+        if "\\n" in api_secret:
+            api_secret = api_secret.replace("\\n", "\n")
 
         try:
             self.client = RESTClient(api_key=api_key, api_secret=api_secret)
@@ -101,11 +105,15 @@ class CoinbaseAdvanced:
             return self._account_cache[currency]
 
         try:
-            accounts = self.client.get_accounts()
-            for account in accounts.get("accounts", []):
-                if account.get("currency") == currency:
-                    self._account_cache[currency] = account.get("uuid")
-                    return account.get("uuid")
+            response = self.client.get_accounts()
+            # SDK returns object with .accounts attribute
+            accounts = response.accounts if hasattr(response, 'accounts') else response.get("accounts", [])
+            for account in accounts:
+                acc_currency = account.get("currency") if isinstance(account, dict) else account.currency
+                if acc_currency == currency:
+                    acc_uuid = account.get("uuid") if isinstance(account, dict) else account.uuid
+                    self._account_cache[currency] = acc_uuid
+                    return acc_uuid
         except Exception as e:
             logging.error(f"Failed to get account UUID for {currency}: {e}")
 
@@ -126,11 +134,17 @@ class CoinbaseAdvanced:
             currency = "USD"
 
         try:
-            accounts = self.client.get_accounts()
-            for account in accounts.get("accounts", []):
-                if account.get("currency") == currency:
-                    available = account.get("available_balance", {})
-                    return float(available.get("value", 0))
+            response = self.client.get_accounts()
+            # SDK returns object with .accounts attribute
+            accounts = response.accounts if hasattr(response, 'accounts') else response.get("accounts", [])
+            for account in accounts:
+                acc_currency = account.get("currency") if isinstance(account, dict) else account.currency
+                if acc_currency == currency:
+                    if isinstance(account, dict):
+                        available = account.get("available_balance", {})
+                        return float(available.get("value", 0))
+                    else:
+                        return float(account.available_balance.get("value", 0))
             return 0.0
         except Exception as e:
             logging.error(f"Failed to get balance for {currency}: {e}")
@@ -158,16 +172,24 @@ class CoinbaseAdvanced:
         base_currency = cb_symbol.split("-")[0]  # "BTC-USD" -> "BTC"
 
         try:
-            accounts = self.client.get_accounts()
-            for account in accounts.get("accounts", []):
-                if account.get("currency") == base_currency:
-                    available = account.get("available_balance", {})
-                    qty = float(available.get("value", 0))
+            response = self.client.get_accounts()
+            # SDK returns object with .accounts attribute
+            accounts = response.accounts if hasattr(response, 'accounts') else response.get("accounts", [])
+            for account in accounts:
+                acc_currency = account.get("currency") if isinstance(account, dict) else account.currency
+                if acc_currency == base_currency:
+                    if isinstance(account, dict):
+                        available = account.get("available_balance", {})
+                        qty = float(available.get("value", 0))
+                        acc_uuid = account.get("uuid", "")
+                    else:
+                        qty = float(account.available_balance.get("value", 0))
+                        acc_uuid = account.uuid
 
                     # Only return position if we have a meaningful balance
                     if qty > 0.0000001:  # Small threshold to ignore dust
                         return CoinbasePosition(
-                            positionId=account.get("uuid", ""),
+                            positionId=acc_uuid,
                             symbol=cb_symbol,
                             qty=qty,
                             side="buy",  # Spot is always "long"
