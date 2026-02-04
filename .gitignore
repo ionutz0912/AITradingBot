@@ -43,3 +43,9 @@ Thumbs.db
 logs/
 ai_responses/
 forward_testing_results/
+performance_data/
+
+# Config files (keep samples)
+configs/config.json
+configs/*.json
+!configs/config.sample.json
