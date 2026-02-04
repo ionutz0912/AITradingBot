@@ -2,20 +2,25 @@ import os
 import logging
 from dotenv import load_dotenv
 
-from lib import ai, custom_helpers, ForwardTester, BitunixFutures, BitunixError, DiscordNotifier
+from lib import (
+    ai, custom_helpers, ForwardTester,
+    BitunixFutures, BitunixError,
+    CoinbaseAdvanced, CoinbaseError,
+    DiscordNotifier
+)
 
 load_dotenv()
 
 # ===================== CONFIGURATION =====================
 RUN_NAME = "run_btc_template_prompt"
 CRYPTO = "Bitcoin"
-SYMBOL = "BTCUSDT"
+SYMBOL = "BTCUSDT"  # Will be converted to "BTC-USD" for Coinbase
 LEVERAGE = 1
 MARGIN_MODE = "ISOLATION"
 
 # Position Size Configuration
 # POSITION_SIZE = "10%"  # Use 10% of capital per trade
-POSITION_SIZE = 20  # Use 20 USDT per trade
+POSITION_SIZE = 20  # Use 20 USD per trade
 
 # Stop Loss Configuration (LIVE TRADING ONLY - not supported in forward testing yet)
 STOP_LOSS_PERCENT = 10  # 10% stop-loss from entry price
@@ -30,7 +35,7 @@ FORWARD_TESTING_CONFIG = None
 # }
 
 # Discord Notification Configuration
-DISCORD_WEBHOOK_URL = "your_discord_webhook_here"
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 DISCORD_INCLUDE_REASON = True  # Set to False to exclude AI reasoning from notifications
 
 PROMPT = f"""
@@ -51,21 +56,46 @@ Return the result by calling the provided function/tool with your outlook and re
 """.strip()
 
 # ===================== PREP =====================
-LLM_API_KEY = os.environ.get("LLM_API_KEY")
-EXCHANGE_API_KEY = os.environ.get("EXCHANGE_API_KEY")
-EXCHANGE_API_SECRET = os.environ.get("EXCHANGE_API_SECRET")
+# AI Provider Configuration
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "anthropic").lower()
+AI_API_KEYS = {
+    "anthropic": os.environ.get("ANTHROPIC_API_KEY"),
+    "xai": os.environ.get("XAI_API_KEY"),
+    "grok": os.environ.get("XAI_API_KEY"),  # Alias for xai
+    "deepseek": os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_API_KEY"),  # Backward compat
+}
+AI_API_KEY = AI_API_KEYS.get(AI_PROVIDER)
+
+# Exchange Provider Configuration
+EXCHANGE_PROVIDER = os.environ.get("EXCHANGE_PROVIDER", "coinbase").lower()
+
+# Coinbase credentials
+COINBASE_API_KEY = os.environ.get("COINBASE_API_KEY")
+COINBASE_API_SECRET = os.environ.get("COINBASE_API_SECRET")
+
+# Bitunix credentials (legacy)
+BITUNIX_API_KEY = os.environ.get("BITUNIX_API_KEY") or os.environ.get("EXCHANGE_API_KEY")
+BITUNIX_API_SECRET = os.environ.get("BITUNIX_API_SECRET") or os.environ.get("EXCHANGE_API_SECRET")
 
 # ===================== MAIN EXECUTION =====================
 custom_helpers.configure_logger(RUN_NAME)
 logging.info("=== Run Started ===")
 
-# Initialize exchange client (real or forward testing)
+# Initialize exchange client
 if FORWARD_TESTING_CONFIG is not None:
     exchange = ForwardTester(FORWARD_TESTING_CONFIG)
     logging.info("Forward testing mode enabled")
+    is_spot_exchange = False  # Forward tester supports shorting
+elif EXCHANGE_PROVIDER == "coinbase":
+    exchange = CoinbaseAdvanced(COINBASE_API_KEY, COINBASE_API_SECRET)
+    logging.info("Live trading mode: Coinbase")
+    is_spot_exchange = True  # Coinbase spot doesn't support shorting
+elif EXCHANGE_PROVIDER == "bitunix":
+    exchange = BitunixFutures(BITUNIX_API_KEY, BITUNIX_API_SECRET)
+    logging.info("Live trading mode: Bitunix")
+    is_spot_exchange = False  # Bitunix futures supports shorting
 else:
-    exchange = BitunixFutures(EXCHANGE_API_KEY, EXCHANGE_API_SECRET)
-    logging.info("Live trading mode enabled")
+    raise ValueError(f"Unknown exchange provider: {EXCHANGE_PROVIDER}")
 
 # Initialize Discord notifier if webhook URL is provided
 discord_notifier = None
@@ -76,12 +106,13 @@ if DISCORD_WEBHOOK_URL:
     except ValueError as e:
         logging.warning(f"Discord notifier initialization failed: {e}")
 
-#  Call AI to get interpretation
+# Call AI to get interpretation
 try:
-    outlook = ai.send_request(PROMPT, CRYPTO, LLM_API_KEY)
+    ai.init_provider(AI_PROVIDER, AI_API_KEY)
+    outlook = ai.send_request(PROMPT, CRYPTO)
     interpretation = outlook.interpretation
     logging.info(f"AI Interpretation: {interpretation}")
-except (ai.AIResponseError, Exception) as e:
+except (ai.AIResponseError, ai.AIProviderError, Exception) as e:
     logging.warning(f"AI request failed, defaulting to Neutral: {e}")
     interpretation = "Neutral"
     outlook = None
@@ -106,54 +137,70 @@ try:
     position = exchange.get_pending_positions(symbol=SYMBOL)
     current_position = position.side.lower() if position else None
     logging.info(f"Current Position: {current_position}")
-    logging.info(f"Available Capital: {exchange.get_account_balance('USDT')} USDT")
+    logging.info(f"Available Capital: {exchange.get_account_balance('USDT')} USD")
 
     # Execute trading actions
     exchange.set_margin_mode(SYMBOL, MARGIN_MODE)
     exchange.set_leverage(SYMBOL, LEVERAGE)
 
-    match (interpretation, current_position):
-        # Bullish cases
-        case ("Bullish", None):
-            logging.info("Bullish signal: Opening long position")
-            custom_helpers.open_position(exchange, SYMBOL, direction="buy",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    # Bullish cases
+    if interpretation == "Bullish" and current_position is None:
+        logging.info("Bullish signal: Opening long position")
+        custom_helpers.open_position(exchange, SYMBOL, direction="buy",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bullish", "sell"):
-            logging.info("Bullish signal: Closing short, opening long")
-            exchange.flash_close_position(position.positionId)
-            custom_helpers.open_position(exchange, SYMBOL, direction="buy",
-                                        position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
+    elif interpretation == "Bullish" and current_position == "sell":
+        logging.info("Bullish signal: Closing short, opening long")
+        exchange.flash_close_position(position.positionId)
+        custom_helpers.open_position(exchange, SYMBOL, direction="buy",
+                                    position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bullish", "buy"):
-            logging.info("Bullish signal: Already in long position, holding")
+    elif interpretation == "Bullish" and current_position == "buy":
+        logging.info("Bullish signal: Already in long position, holding")
 
-        # Bearish cases
-        case ("Bearish", None):
+    # Bearish cases
+    elif interpretation == "Bearish" and current_position is None:
+        if is_spot_exchange:
+            # Spot exchanges don't support shorting
+            logging.info("Bearish signal: Spot exchange - no position to close, staying flat")
+        else:
             logging.info("Bearish signal: Opening short position")
             custom_helpers.open_position(exchange, SYMBOL, direction="sell",
                                         position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bearish", "buy"):
+    elif interpretation == "Bearish" and current_position == "buy":
+        if is_spot_exchange:
+            # Spot exchange: just close the long, can't short
+            logging.info("Bearish signal: Spot exchange - closing long position (no shorting)")
+            exchange.flash_close_position(position.positionId)
+        else:
             logging.info("Bearish signal: Closing long, opening short")
             exchange.flash_close_position(position.positionId)
             custom_helpers.open_position(exchange, SYMBOL, direction="sell",
                                         position_size=POSITION_SIZE, stop_loss_percent=STOP_LOSS_PERCENT)
 
-        case ("Bearish", "sell"):
-            logging.info("Bearish signal: Already in short position, holding")
+    elif interpretation == "Bearish" and current_position == "sell":
+        logging.info("Bearish signal: Already in short position, holding")
 
-        # Neutral cases
-        case ("Neutral", "buy" | "sell"):
-            logging.info(f"Neutral signal: Closing {current_position} position")
-            exchange.flash_close_position(position.positionId)
-        case ("Neutral", None):
-            logging.info("Neutral signal: No position open, doing nothing")
+    # Neutral cases
+    elif interpretation == "Neutral" and current_position in ("buy", "sell"):
+        logging.info(f"Neutral signal: Closing {current_position} position")
+        exchange.flash_close_position(position.positionId)
+
+    elif interpretation == "Neutral" and current_position is None:
+        logging.info("Neutral signal: No position open, doing nothing")
 
     logging.info("=== Run Completed ===")
 
-except (BitunixError, Exception) as e:
+except (BitunixError, CoinbaseError, Exception) as e:
     logging.warning(f"Exchange operation failed, stopping execution: {e}")
+
+    # Send error notification if Discord is configured
+    if discord_notifier:
+        try:
+            discord_notifier.send_error(RUN_NAME, str(e))
+        except Exception:
+            pass
 
     # SAFETY: Flash close any open position on error
     try:
