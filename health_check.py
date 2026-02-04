@@ -158,7 +158,7 @@ def check_ai_provider() -> bool:
         # Quick test (minimal tokens)
         test_prompt = "Reply with only the word 'OK' to confirm you're working."
         try:
-            response = ai.send_request(test_prompt, "test", save_response=False)
+            response = ai.send_request(test_prompt, "test")
             print_check("AI Response Test", True, f"Received response: '{response.interpretation}'")
             return True
         except Exception as e:

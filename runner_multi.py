@@ -24,6 +24,7 @@ from lib import (
     BitunixFutures, BitunixError,
     CoinbaseAdvanced, CoinbaseError,
     DiscordNotifier,
+    TelegramNotifier,
     get_tracker,
     load_config, get_enabled_symbols, validate_config, TradingConfig, SymbolConfig,
     get_enhanced_market_context
@@ -299,7 +300,21 @@ def run_multi_symbol_bot(
     if config.discord_enabled:
         webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
         if webhook_url:
-            discord = DiscordNotifier(webhook_url)
+            try:
+                discord = DiscordNotifier(webhook_url)
+            except ValueError as e:
+                logging.warning(f"Discord notifications disabled: {e}")
+
+    # Initialize Telegram notifier if enabled
+    telegram = None
+    if config.telegram_enabled:
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        if bot_token and chat_id:
+            try:
+                telegram = TelegramNotifier(bot_token, chat_id)
+            except ValueError as e:
+                logging.warning(f"Telegram notifications disabled: {e}")
 
     # Initialize performance tracker
     tracker = get_tracker(config.run_name)
@@ -335,7 +350,7 @@ def run_multi_symbol_bot(
         # Send Discord notification
         if discord and outlook:
             try:
-                reasoning = outlook.reasoning if config.discord_include_reasoning else None
+                reasoning = outlook.reasons if config.discord_include_reasoning else None
                 discord.send_notification(
                     symbol=symbol_config.symbol,
                     interpretation=interpretation,
@@ -343,6 +358,18 @@ def run_multi_symbol_bot(
                 )
             except Exception as e:
                 logging.warning(f"Discord notification failed: {e}")
+
+        # Send Telegram notification
+        if telegram and outlook:
+            try:
+                reasoning = outlook.reasons if config.telegram_include_reasoning else None
+                telegram.send_notification(
+                    symbol=symbol_config.symbol,
+                    interpretation=interpretation,
+                    reasoning=reasoning
+                )
+            except Exception as e:
+                logging.warning(f"Telegram notification failed: {e}")
 
     # Summary
     logging.info("\n=== Multi-Symbol Run Summary ===")

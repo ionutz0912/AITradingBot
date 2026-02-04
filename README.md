@@ -10,7 +10,9 @@ AI-powered cryptocurrency trading bot with multi-provider AI support and multi-e
 - **Real-Time Market Data**: Fetches prices from CoinGecko, Coinbase, Binance
 - **Performance Tracking**: Track P&L, win rate, and trade history
 - **Forward Testing**: Simulate trades without risking real capital
+- **Web Dashboard**: Real-time monitoring with Flask-based web interface
 - **Discord Notifications**: Get alerts for trade signals
+- **Telegram Notifications**: Get alerts via Telegram Bot API
 - **Health Check**: Verify API connectivity before trading
 
 ---
@@ -47,8 +49,12 @@ EXCHANGE_PROVIDER=coinbase
 COINBASE_API_KEY=organizations/.../apiKeys/...
 COINBASE_API_SECRET=-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----\n
 
-# Optional
+# Optional - Discord
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Optional - Telegram (get from @BotFather)
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
 ```
 
 ### 3. Verify Setup
@@ -86,6 +92,8 @@ python runner_multi.py --dry-run
 | `COINBASE_API_KEY` | Coinbase CDP API key |
 | `COINBASE_API_SECRET` | Coinbase CDP secret (PEM format) |
 | `DISCORD_WEBHOOK_URL` | Discord webhook for notifications |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID for notifications |
 
 ### Configuration File (Multi-Symbol)
 
@@ -149,6 +157,53 @@ python runner_multi.py --dry-run
 
 ---
 
+## Web Dashboard
+
+Monitor your trading bot in real-time with the built-in web dashboard.
+
+### Start the Dashboard
+
+```bash
+# Basic usage (localhost:5000)
+python run_dashboard.py
+
+# Custom port
+python run_dashboard.py --port 8080
+
+# Allow external connections
+python run_dashboard.py --host 0.0.0.0
+
+# Debug mode
+python run_dashboard.py --debug
+```
+
+### Dashboard Features
+
+- **Status Overview**: Bot configuration, mode, enabled symbols
+- **Performance Metrics**: P&L, win rate, total trades
+- **Trade History**: Recent trades with entry/exit prices
+- **Market Data**: Real-time prices for enabled symbols
+- **Open Positions**: Current positions with P&L
+- **AI History**: Recent AI interpretations and reasoning
+- **Fear & Greed Index**: Market sentiment indicator
+- **Account Balance**: Current account balance
+
+### API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/status` | Bot configuration and status |
+| `/api/metrics` | Performance metrics |
+| `/api/trades` | Recent trade history |
+| `/api/market` | Live market prices |
+| `/api/positions` | Current open positions |
+| `/api/ai-history` | Recent AI interpretations |
+| `/api/fear-greed` | Fear & Greed Index |
+| `/api/balance` | Account balance |
+| `/api/summary` | Combined summary (all data) |
+
+---
+
 ## Utilities
 
 ### Health Check
@@ -178,6 +233,7 @@ AITradingBot/
 ├── runner.py                # Basic single-symbol runner
 ├── runner_with_discord.py   # Runner with Discord notifications
 ├── runner_multi.py          # Multi-symbol runner
+├── run_dashboard.py         # Web dashboard entry point
 ├── health_check.py          # API connectivity checker
 ├── batch_runner.sh          # Cron job script
 ├── requirements.txt         # Python dependencies
@@ -191,12 +247,57 @@ AITradingBot/
 │   ├── performance_tracker.py  # P&L tracking
 │   ├── config.py            # Configuration management
 │   ├── custom_helpers.py    # Trading helpers
-│   └── discord_notifications.py
+│   ├── discord_notifications.py  # Discord alerts
+│   └── telegram_notifications.py # Telegram alerts
+├── dashboard/               # Web dashboard
+│   ├── app.py               # Flask application factory
+│   ├── routes/              # API and view routes
+│   ├── services/            # Data aggregation services
+│   ├── templates/           # HTML templates
+│   └── static/              # CSS, JS assets
 ├── configs/                 # Configuration files
 ├── logs/                    # Execution logs
 ├── ai_responses/            # AI response history
 └── performance_data/        # Trade history
 ```
+
+---
+
+## Notifications
+
+### Discord Setup
+
+1. Create a webhook in your Discord server (Server Settings → Integrations → Webhooks)
+2. Copy the webhook URL to `.env`:
+   ```env
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+   ```
+3. Enable in config.json:
+   ```json
+   {
+     "discord_enabled": true,
+     "discord_include_reasoning": false
+   }
+   ```
+
+### Telegram Setup
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram
+2. Copy the bot token
+3. Start a chat with your bot and send any message
+4. Get your chat ID by visiting: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+5. Add to `.env`:
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token
+   TELEGRAM_CHAT_ID=your_chat_id
+   ```
+6. Enable in config.json:
+   ```json
+   {
+     "telegram_enabled": true,
+     "telegram_include_reasoning": false
+   }
+   ```
 
 ---
 

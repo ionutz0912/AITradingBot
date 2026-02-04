@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AITrading Bot Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'profit': '#10b981',
+                        'loss': '#ef4444',
+                        'neutral': '#6b7280',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loading { opacity: 0.5; }
+        .bullish { color: #10b981; }
+        .bearish { color: #ef4444; }
+        .neutral { color: #6b7280; }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white">AITrading Bot</h1>
+                    <p class="text-gray-400 mt-1">
+                        <span id="run-name">Loading...</span>
+                        <span id="mode-badge" class="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-gray-700">--</span>
+                    </p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="last-updated" class="text-sm text-gray-500">--</span>
+                    <div id="refresh-indicator" class="w-2 h-2 rounded-full bg-green-500 pulse-subtle" title="Auto-refresh active"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+
+            <!-- Performance Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Performance
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Win Rate</span>
+                        <span id="win-rate" class="font-semibold">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Total P&L</span>
+                        <span id="total-pnl" class="font-semibold">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Profit Factor</span>
+                        <span id="profit-factor" class="font-semibold">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Max Drawdown</span>
+                        <span id="max-drawdown" class="font-semibold text-loss">--</span>
+                    </div>
+                    <hr class="border-gray-700">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Trades</span>
+                        <span id="total-trades">--</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Current Streak</span>
+                        <span id="current-streak">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Data Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    Market Data
+                </h2>
+                <div id="market-data" class="space-y-4">
+                    <p class="text-gray-500 text-sm">Loading market data...</p>
+                </div>
+                <hr class="border-gray-700 my-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Fear & Greed</span>
+                    <div class="flex items-center gap-2">
+                        <span id="fear-greed-value" class="font-bold text-lg">--</span>
+                        <span id="fear-greed-label" class="text-sm px-2 py-0.5 rounded bg-gray-700">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account & Position Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Account & Position
+                </h2>
+                <div class="mb-4">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Available Balance</span>
+                        <span id="usd-balance" class="font-semibold">--</span>
+                    </div>
+                </div>
+                <hr class="border-gray-700 mb-4">
+                <div id="positions-container">
+                    <p class="text-gray-500 text-sm">No open positions</p>
+                </div>
+            </div>
+
+            <!-- AI Signals Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg lg:col-span-2 xl:col-span-3">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    AI Signals
+                </h2>
+                <div id="ai-signals" class="space-y-3">
+                    <p class="text-gray-500 text-sm">Loading AI signals...</p>
+                </div>
+            </div>
+
+            <!-- Recent Trades Table -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg lg:col-span-2 xl:col-span-3">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    Recent Trades
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="text-left py-2 px-2">Time</th>
+                                <th class="text-left py-2 px-2">Symbol</th>
+                                <th class="text-left py-2 px-2">Side</th>
+                                <th class="text-right py-2 px-2">Entry</th>
+                                <th class="text-right py-2 px-2">Exit</th>
+                                <th class="text-right py-2 px-2">P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-table">
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-gray-500">No trades yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>AI Trading Bot Dashboard &bull; Auto-refreshes every 30 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

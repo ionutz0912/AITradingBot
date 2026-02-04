@@ -68,6 +68,8 @@ class TradingConfig(BaseModel):
     # Notification settings
     discord_enabled: bool = Field(default=False, description="Send Discord notifications")
     discord_include_reasoning: bool = Field(default=False, description="Include AI reasoning in Discord messages")
+    telegram_enabled: bool = Field(default=False, description="Send Telegram notifications")
+    telegram_include_reasoning: bool = Field(default=False, description="Include AI reasoning in Telegram messages")
 
     # Risk management
     max_positions: int = Field(default=5, ge=1, description="Maximum concurrent positions")

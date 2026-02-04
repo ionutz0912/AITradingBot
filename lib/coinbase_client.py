@@ -214,7 +214,13 @@ class CoinbaseAdvanced:
 
         try:
             product = self.client.get_product(product_id=cb_symbol)
-            return float(product.get("price", 0))
+            # SDK returns object with attributes, not dict
+            if hasattr(product, 'price'):
+                return float(product.price)
+            elif isinstance(product, dict):
+                return float(product.get("price", 0))
+            else:
+                raise CoinbaseError(f"Unexpected product response type: {type(product)}")
         except Exception as e:
             logging.error(f"Failed to get price for {symbol}: {e}")
             raise CoinbaseError(f"Failed to get price: {e}")
