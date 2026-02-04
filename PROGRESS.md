@@ -2,229 +2,191 @@
 
 ## Project Overview
 
-Fork of AITradingBot adapted for multi-provider AI support and Coinbase exchange integration.
+AI-powered cryptocurrency trading bot with multi-provider AI support and Coinbase exchange integration.
+
+---
+
+## Features
+
+### AI Providers
+| Provider | Config Value | Model | Status |
+|----------|--------------|-------|--------|
+| **Anthropic (Claude)** | `anthropic` | `claude-sonnet-4-20250514` | ✅ Working |
+| **xAI (Grok)** | `xai` or `grok` | `grok-3-latest` | ✅ Working |
+| **DeepSeek** | `deepseek` | `deepseek-chat` | ✅ Available |
+
+### Exchange Providers
+| Provider | Config Value | Type | Status |
+|----------|--------------|------|--------|
+| **Coinbase** | `coinbase` | Spot | ✅ Working |
+| **Bitunix** | `bitunix` | Futures | ✅ Available |
+
+---
+
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+```bash
+cp .env.template .env
+# Edit .env with your API keys
+```
+
+### 3. Run
+```bash
+python3 runner.py
+```
+
+---
+
+## Configuration
+
+### `.env` File Structure
+```bash
+# AI Provider: anthropic, xai, grok, deepseek
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+XAI_API_KEY=xai-...
+
+# Exchange Provider: coinbase, bitunix
+EXCHANGE_PROVIDER=coinbase
+
+# Coinbase (CDP API keys from cloud.coinbase.com/access/api)
+COINBASE_API_KEY=organizations/.../apiKeys/...
+COINBASE_API_SECRET=-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----\n
+
+# Bitunix (if using)
+BITUNIX_API_KEY=...
+BITUNIX_API_SECRET=...
+
+# Optional
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+### Coinbase API Key Setup
+1. Go to **https://cloud.coinbase.com/access/api** (NOT coinbase.com/settings/api)
+2. Create new API key with `view` and `trade` permissions
+3. Download the key and PEM secret
+4. In `.env`, use `\n` for newlines in the PEM secret
+5. Remove any IP whitelist restrictions (or add your IP)
+
+---
+
+## Trading Logic
+
+### Spot Exchange (Coinbase)
+| AI Signal | Action |
+|-----------|--------|
+| **Bullish** | Buy BTC (open long) |
+| **Bearish** | Sell BTC (close position - no shorting) |
+| **Neutral** | Sell BTC (close position) |
+
+### Futures Exchange (Bitunix)
+| AI Signal | Action |
+|-----------|--------|
+| **Bullish** | Open/hold long position |
+| **Bearish** | Open/hold short position |
+| **Neutral** | Close any position |
+
+---
+
+## Files Structure
+
+```
+AITradingBot/
+├── runner.py                 # Main trading bot
+├── runner_with_discord.py    # Bot with Discord notifications
+├── requirements.txt          # Python dependencies
+├── .env.template             # Environment template
+├── .env                      # Your config (gitignored)
+├── lib/
+│   ├── ai.py                 # Multi-provider AI module
+│   ├── coinbase_client.py    # Coinbase exchange client
+│   ├── bitunix.py            # Bitunix exchange client
+│   ├── forward_tester.py     # Simulated trading
+│   ├── custom_helpers.py     # Trading helpers
+│   └── discord_notifications.py  # Discord webhook
+├── PROGRESS.md               # This file
+└── TODO_COINBASE.md          # Coinbase implementation notes
+```
+
+---
+
+## Testing
+
+### Forward Testing (Simulated)
+Edit `runner.py`:
+```python
+FORWARD_TESTING_CONFIG = {
+    "run_name": RUN_NAME,
+    "initial_capital": 10000,
+    "fees": 0.0006,
+}
+```
+
+### Live Trading
+Edit `runner.py`:
+```python
+FORWARD_TESTING_CONFIG = None
+```
 
 ---
 
 ## Completed Work
 
-### 1. Security Analysis (Initial Review)
-
-**Overall Score: 7/10 - Moderate Risk**
-
-#### Positive Findings:
-- All external APIs use HTTPS
-- No dangerous code execution (`eval`, `exec`, etc.)
-- Clean dependencies (requests, pydantic, pandas, numpy, dotenv)
-- Uses `.env` files for credentials (not hardcoded)
-- Pydantic enforces strict input validation
-- Custom exceptions and error handling
-
-#### Issues Identified & Fixed:
-| Issue | Status |
-|-------|--------|
-| Missing `discord_notifications.py` | ✅ Fixed - Created file |
-| Discord webhook hardcoded | ✅ Fixed - Uses env var |
-| Python 3.10+ syntax (match statements) | ✅ Fixed - Converted to if/elif |
-| Python 3.10+ type hints (`X | None`) | ✅ Fixed - Added `from __future__ import annotations` |
-| `slots=True` in dataclasses | ✅ Fixed - Removed for Python 3.9 |
-| `lib/` in .gitignore blocking source | ✅ Fixed - Removed from .gitignore |
+- [x] Security analysis of original codebase
+- [x] Multi-provider AI support (Anthropic, xAI, DeepSeek)
+- [x] Coinbase Advanced Trade API integration
+- [x] Python 3.9 compatibility fixes
+- [x] Discord notifications module (was missing)
+- [x] Forward testing mode
+- [x] Exchange provider selection
+- [x] Spot trading support (handles no-shorting gracefully)
+- [x] PEM secret newline handling for .env files
 
 ---
 
-### 2. Multi-Provider AI Support
+## Live Testing Results
 
-Refactored `lib/ai.py` to support multiple AI providers:
-
-| Provider | Config Value | Model | Status |
-|----------|--------------|-------|--------|
-| **Anthropic (Claude)** | `anthropic` | `claude-sonnet-4-20250514` | ✅ Tested & Working |
-| **xAI (Grok)** | `xai` or `grok` | `grok-3-latest` | ✅ Tested & Working |
-| **DeepSeek** | `deepseek` | `deepseek-chat` | ✅ Available (legacy) |
-
-#### Architecture:
+**Coinbase Integration - Verified Working:**
 ```
-AIProvider (Abstract Base Class)
-├── AnthropicProvider
-├── XAIProvider
-└── DeepSeekProvider
-```
-
-#### Usage:
-```python
-# In .env
-AI_PROVIDER=anthropic  # or: xai, grok, deepseek
-
-# In code
-ai.init_provider(AI_PROVIDER, AI_API_KEY)
-outlook = ai.send_request(PROMPT, CRYPTO)
+2026-02-03 19:18:23 - Coinbase client initialized
+2026-02-03 19:18:23 - Live trading mode: Coinbase
+2026-02-03 19:18:23 - AI Interpretation: Neutral
+2026-02-03 19:18:23 - Current Position: None
+2026-02-03 19:18:23 - Available Capital: 10.0 USD
+2026-02-03 19:18:23 - Neutral signal: No position open, doing nothing
+2026-02-03 19:18:23 - === Run Completed ===
 ```
 
 ---
 
-### 3. Python 3.9 Compatibility
+## API Resources
 
-All files updated for Python 3.9 compatibility:
+### Coinbase
+- Documentation: https://docs.cdp.coinbase.com/advanced-trade/docs/welcome
+- Python SDK: https://github.com/coinbase/coinbase-advanced-py
+- API Keys: https://cloud.coinbase.com/access/api
 
-| File | Changes |
-|------|---------|
-| `lib/ai.py` | Added `from __future__ import annotations` |
-| `lib/bitunix.py` | Added future annotations, removed `slots=True` |
-| `lib/forward_tester.py` | Added future annotations |
-| `lib/custom_helpers.py` | Added future annotations |
-| `runner.py` | Converted `match` to `if/elif` |
-| `runner_with_discord.py` | Converted `match` to `if/elif` |
-
----
-
-### 4. Files Created/Modified
-
-#### New Files:
-- `lib/discord_notifications.py` - Discord webhook notifications (was missing)
-
-#### Modified Files:
-- `lib/ai.py` - Complete rewrite with multi-provider support
-- `lib/bitunix.py` - Python 3.9 compatibility
-- `lib/forward_tester.py` - Python 3.9 compatibility
-- `lib/custom_helpers.py` - Python 3.9 compatibility
-- `runner.py` - Provider support + Python 3.9
-- `runner_with_discord.py` - Provider support + Python 3.9
-- `.env.template` - Added provider selection and API keys
-- `.gitignore` - Fixed `lib/` exclusion
+### AI Providers
+- Anthropic: https://console.anthropic.com/
+- xAI: https://console.x.ai/
+- DeepSeek: https://platform.deepseek.com/
 
 ---
 
-### 5. Forward Testing Results
-
-Successfully tested with both providers:
-
-```
-Provider: xAI (Grok)
-Signal: Bullish → Opened long position
-Position: 0.000261 BTC @ $76,484.20
-
-Provider: Anthropic (Claude)
-Signal: Neutral → Closed position
-PnL: -$0.03 | Capital: $9,999.95
-```
-
----
-
-## Pending Work
-
-### 1. Coinbase Exchange Integration
-
-**Current State:** Bot uses Bitunix exchange API
-**Goal:** Add Coinbase Advanced Trade API support
-
-#### Coinbase API Resources:
-- **Documentation:** https://docs.cdp.coinbase.com/advanced-trade/docs/welcome
-- **Python SDK:** https://github.com/coinbase/coinbase-advanced-py
-- **Getting Started:** https://docs.cdp.coinbase.com/advanced-trade/docs/getting-started
-
-#### Required:
-1. Install SDK: `pip install coinbase-advanced-py`
-2. Create `lib/coinbase.py` - Coinbase exchange client
-3. Update `.env.template` with Coinbase credentials
-4. Update runners to support exchange selection
-
-#### Coinbase vs Bitunix API Differences:
-| Feature | Bitunix | Coinbase |
-|---------|---------|----------|
-| Auth | HMAC-SHA256 signature | CDP API key/secret |
-| SDK | Custom implementation | Official `coinbase-advanced-py` |
-| Products | Futures | Spot & Futures |
-| Endpoints | `fapi.bitunix.com` | `api.coinbase.com` |
-
----
-
-## Environment Configuration
-
-### Current `.env.template`:
-```bash
-# AI Provider Configuration
-AI_PROVIDER=anthropic  # Options: anthropic, xai, grok, deepseek
-
-# API Keys (only the one matching your AI_PROVIDER is required)
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-XAI_API_KEY=your_xai_grok_api_key_here
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
-
-# Exchange Configuration (Bitunix - to be replaced with Coinbase)
-EXCHANGE_API_KEY=your_exchange_api_key_here
-EXCHANGE_API_SECRET=your_exchange_api_secret_here
-
-# Discord Notifications (optional)
-DISCORD_WEBHOOK_URL=your_discord_webhook_here
-```
-
-### Future `.env.template` (with Coinbase):
-```bash
-# Exchange Selection
-EXCHANGE_PROVIDER=coinbase  # Options: coinbase, bitunix
-
-# Coinbase Configuration
-COINBASE_API_KEY=your_coinbase_api_key_here
-COINBASE_API_SECRET=your_coinbase_api_secret_here
-```
-
----
-
-## How to Run
-
-### Prerequisites:
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy and configure environment
-cp .env.template .env
-# Edit .env with your API keys
-```
-
-### Run Commands:
-```bash
-# macOS/Linux
-python3 runner.py
-
-# Forward testing (simulated trading)
-# Edit runner.py: FORWARD_TESTING_CONFIG = {...}
-
-# Live trading (use with caution!)
-# Edit runner.py: FORWARD_TESTING_CONFIG = None
-```
-
----
-
-## Git History
-
-```
-19f4dbb Add multi-provider AI support (Anthropic, xAI/Grok, DeepSeek)
-5dc8058 Update runner_with_discord.py
-8be8c5e Update code
-```
-
----
-
-## Next Steps
-
-1. [ ] Create Coinbase exchange client (`lib/coinbase.py`)
-2. [ ] Add exchange provider selection (similar to AI provider)
-3. [ ] Update `.env.template` with Coinbase credentials
-4. [ ] Test with Coinbase paper trading / sandbox
-5. [ ] Add more AI providers (OpenAI, Google Gemini, etc.)
-6. [ ] Improve prompt engineering for better signals
-7. [ ] Add technical indicators to prompts (RSI, MACD, etc.)
-
----
-
-## Security Reminders
+## Security Notes
 
 - Never commit `.env` files (already in `.gitignore`)
 - Rotate API keys if exposed
 - Use forward testing before live trading
-- Start with small position sizes
+- Start with small position sizes ($5-20)
 - Monitor bot activity regularly
+- Coinbase CDP keys use PEM format - keep private
 
 ---
 
