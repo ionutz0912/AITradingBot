@@ -10,7 +10,8 @@ AI-powered cryptocurrency trading bot with multi-provider AI support and multi-e
 - **Real-Time Market Data**: Fetches prices from CoinGecko, Coinbase, Binance
 - **Performance Tracking**: Track P&L, win rate, and trade history
 - **Forward Testing**: Simulate trades without risking real capital
-- **Discord Notifications**: Get alerts for trade signals
+- **Notifications**: Discord and Telegram alerts with stop loss info
+- **Dashboard**: Comprehensive trading dashboard with all metrics
 - **Health Check**: Verify API connectivity before trading
 
 ---
@@ -47,8 +48,10 @@ EXCHANGE_PROVIDER=coinbase
 COINBASE_API_KEY=organizations/.../apiKeys/...
 COINBASE_API_SECRET=-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----\n
 
-# Optional
+# Optional Notifications
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
 ```
 
 ### 3. Verify Setup
@@ -86,6 +89,8 @@ python runner_multi.py --dry-run
 | `COINBASE_API_KEY` | Coinbase CDP API key |
 | `COINBASE_API_SECRET` | Coinbase CDP secret (PEM format) |
 | `DISCORD_WEBHOOK_URL` | Discord webhook for notifications |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token (from @BotFather) |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID for notifications |
 
 ### Configuration File (Multi-Symbol)
 
@@ -151,12 +156,36 @@ python runner_multi.py --dry-run
 
 ## Utilities
 
+### Dashboard
+
+View comprehensive trading status:
+```bash
+python dashboard.py              # Full dashboard
+python dashboard.py --summary    # Quick summary
+python dashboard.py --positions  # Open positions only
+python dashboard.py --performance # Performance metrics
+python dashboard.py --config     # Show configuration
+python dashboard.py --json       # JSON output for integrations
+```
+
 ### Health Check
 
 Verify API connectivity and configuration:
 ```bash
 python health_check.py
 ```
+
+### Telegram Setup
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) on Telegram
+2. Copy your bot token
+3. Get your chat ID (message [@userinfobot](https://t.me/userinfobot))
+4. Add to `.env`:
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=123456789
+```
+5. Test: `python -m lib.telegram_notifications --test`
 
 ### Performance Tracking
 
@@ -178,6 +207,7 @@ AITradingBot/
 ├── runner.py                # Basic single-symbol runner
 ├── runner_with_discord.py   # Runner with Discord notifications
 ├── runner_multi.py          # Multi-symbol runner
+├── dashboard.py             # Trading dashboard
 ├── health_check.py          # API connectivity checker
 ├── batch_runner.sh          # Cron job script
 ├── requirements.txt         # Python dependencies
@@ -191,7 +221,8 @@ AITradingBot/
 │   ├── performance_tracker.py  # P&L tracking
 │   ├── config.py            # Configuration management
 │   ├── custom_helpers.py    # Trading helpers
-│   └── discord_notifications.py
+│   ├── discord_notifications.py
+│   └── telegram_notifications.py  # Telegram alerts
 ├── configs/                 # Configuration files
 ├── logs/                    # Execution logs
 ├── ai_responses/            # AI response history

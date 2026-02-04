@@ -29,6 +29,8 @@ AI-powered cryptocurrency trading bot with multi-provider AI support, multi-exch
 | **Health Check Utility** | `health_check.py` | Complete |
 | **Configuration Files** | `lib/config.py` | Complete |
 | **Multi-Symbol Runner** | `runner_multi.py` | Complete |
+| **Trading Dashboard** | `dashboard.py` | Complete |
+| **Telegram Notifications** | `lib/telegram_notifications.py` | Complete |
 
 ---
 
@@ -84,8 +86,10 @@ COINBASE_API_SECRET=-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY
 BITUNIX_API_KEY=...
 BITUNIX_API_SECRET=...
 
-# Optional
+# Optional Notifications
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
 ```
 
 ### Configuration File (Multi-Symbol)
@@ -197,6 +201,63 @@ symbols = get_enabled_symbols(config)
 issues = validate_config(config)
 ```
 
+### Dashboard (`dashboard.py`)
+Comprehensive trading dashboard with all metrics.
+
+```bash
+python dashboard.py              # Full dashboard
+python dashboard.py --summary    # Quick summary
+python dashboard.py --positions  # Open positions
+python dashboard.py --performance # Performance metrics
+python dashboard.py --config     # Configuration
+python dashboard.py --json       # JSON output
+```
+
+**Shows:**
+- Account balances
+- Open positions with stop loss info
+- Market data for tracked symbols
+- Performance metrics (P&L, win rate)
+- Recent trades
+- Active configuration
+- Trading logic summary
+- System health status
+
+### Telegram Notifications (`lib/telegram_notifications.py`)
+Send trade alerts with stop loss info via Telegram.
+
+**Setup:**
+1. Create bot with [@BotFather](https://t.me/BotFather)
+2. Get chat ID from [@userinfobot](https://t.me/userinfobot)
+3. Add to `.env`:
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=123456789
+```
+
+**Usage:**
+```python
+from lib import TelegramNotifier
+
+notifier = TelegramNotifier()
+notifier.send_trade_signal(
+    symbol="BTCUSDT",
+    signal="Bullish",
+    action="open_long",
+    current_price=95000,
+    stop_loss_price=85500,
+    stop_loss_percent=10
+)
+```
+
+**Features:**
+- Trade signal alerts with entry/exit prices
+- Stop loss price and percentage display
+- Position open/close notifications
+- Error alerts
+- Daily summary reports
+- Test connection: `python -m lib.telegram_notifications --test`
+
 ---
 
 ## Trading Logic
@@ -223,27 +284,29 @@ issues = validate_config(config)
 AITradingBot/
 ├── runner.py                 # Basic single-symbol runner
 ├── runner_with_discord.py    # Runner with Discord notifications
-├── runner_multi.py           # Multi-symbol runner (NEW)
-├── health_check.py           # API connectivity checker (NEW)
+├── runner_multi.py           # Multi-symbol runner
+├── dashboard.py              # Trading dashboard (NEW)
+├── health_check.py           # API connectivity checker
 ├── batch_runner.sh           # Cron job script
 ├── requirements.txt          # Python dependencies
 ├── .env.template             # Environment template
 ├── .env                      # Your config (gitignored)
-├── configs/                  # Configuration files (NEW)
+├── configs/                  # Configuration files
 │   └── config.sample.json    # Sample configuration
 ├── lib/
 │   ├── ai.py                 # Multi-provider AI module
 │   ├── coinbase_client.py    # Coinbase exchange client
 │   ├── bitunix.py            # Bitunix exchange client
 │   ├── forward_tester.py     # Simulated trading
-│   ├── market_data.py        # Real-time market data (NEW)
-│   ├── performance_tracker.py # P&L tracking (NEW)
-│   ├── config.py             # Configuration management (NEW)
+│   ├── market_data.py        # Real-time market data
+│   ├── performance_tracker.py # P&L tracking
+│   ├── config.py             # Configuration management
 │   ├── custom_helpers.py     # Trading helpers
-│   └── discord_notifications.py
+│   ├── discord_notifications.py
+│   └── telegram_notifications.py  # Telegram alerts (NEW)
 ├── logs/                     # Execution logs
 ├── ai_responses/             # AI response history
-├── performance_data/         # Trade history (NEW)
+├── performance_data/         # Trade history
 ├── PROGRESS.md               # This file
 └── TODO_COINBASE.md          # Coinbase implementation notes
 ```
@@ -306,6 +369,8 @@ Or in config:
 - [x] Multi-symbol runner
 - [x] Dry-run mode for testing
 - [x] Enhanced AI prompts with market data
+- [x] Trading dashboard with comprehensive metrics
+- [x] Telegram notifications with stop loss info
 - [x] Updated documentation
 
 ---

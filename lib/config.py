@@ -68,6 +68,9 @@ class TradingConfig(BaseModel):
     # Notification settings
     discord_enabled: bool = Field(default=False, description="Send Discord notifications")
     discord_include_reasoning: bool = Field(default=False, description="Include AI reasoning in Discord messages")
+    telegram_enabled: bool = Field(default=False, description="Send Telegram notifications")
+    telegram_include_reasoning: bool = Field(default=False, description="Include AI reasoning in Telegram messages")
+    telegram_include_stop_loss: bool = Field(default=True, description="Include stop loss info in Telegram messages")
 
     # Risk management
     max_positions: int = Field(default=5, ge=1, description="Maximum concurrent positions")
@@ -177,6 +180,10 @@ def apply_env_overrides(config: TradingConfig) -> TradingConfig:
     if os.environ.get("DISCORD_WEBHOOK_URL"):
         data["discord_enabled"] = True
 
+    # Telegram override
+    if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
+        data["telegram_enabled"] = True
+
     return TradingConfig(**data)
 
 
@@ -196,6 +203,9 @@ def create_sample_config() -> str:
         "include_market_data": True,
         "discord_enabled": False,
         "discord_include_reasoning": False,
+        "telegram_enabled": False,
+        "telegram_include_reasoning": False,
+        "telegram_include_stop_loss": True,
         "max_positions": 5,
         "max_daily_trades": 20,
         "max_drawdown_percent": 20.0,

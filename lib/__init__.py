@@ -2,6 +2,7 @@ from .bitunix import BitunixFutures, BitunixError
 from .coinbase_client import CoinbaseAdvanced, CoinbaseError
 from .forward_tester import ForwardTester
 from .discord_notifications import DiscordNotifier
+from .telegram_notifications import TelegramNotifier, TelegramError, get_telegram_notifier
 from .performance_tracker import PerformanceTracker, Trade, PerformanceMetrics, get_tracker
 from .market_data import (
     MarketData, MarketDataError, get_market_data,
@@ -21,6 +22,9 @@ __all__ = [
     'CoinbaseAdvanced',
     'CoinbaseError',
     'DiscordNotifier',
+    'TelegramNotifier',
+    'TelegramError',
+    'get_telegram_notifier',
     'PerformanceTracker',
     'Trade',
     'PerformanceMetrics',

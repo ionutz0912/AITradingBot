@@ -24,9 +24,10 @@ from lib import (
     BitunixFutures, BitunixError,
     CoinbaseAdvanced, CoinbaseError,
     DiscordNotifier,
+    TelegramNotifier,
     get_tracker,
     load_config, get_enabled_symbols, validate_config, TradingConfig, SymbolConfig,
-    get_enhanced_market_context
+    get_enhanced_market_context, get_market_data
 )
 
 load_dotenv()
@@ -301,6 +302,16 @@ def run_multi_symbol_bot(
         if webhook_url:
             discord = DiscordNotifier(webhook_url)
 
+    # Initialize Telegram notifier if enabled
+    telegram = None
+    if config.telegram_enabled:
+        telegram = TelegramNotifier()
+        if telegram.enabled:
+            logging.info("Telegram notifications enabled")
+        else:
+            logging.warning("Telegram configured but missing credentials")
+            telegram = None
+
     # Initialize performance tracker
     tracker = get_tracker(config.run_name)
 
@@ -343,6 +354,40 @@ def run_multi_symbol_bot(
                 )
             except Exception as e:
                 logging.warning(f"Discord notification failed: {e}")
+
+        # Send Telegram notification
+        if telegram and outlook:
+            try:
+                # Get current price for stop loss calculation
+                current_price = None
+                stop_loss_price = None
+                try:
+                    market_data = get_market_data(symbol_config.symbol)
+                    current_price = market_data.price
+                    # Calculate stop loss price if configured
+                    if symbol_config.stop_loss_percent and current_price:
+                        if result["action"] in ["open_long", "flip_to_long", "hold_long"]:
+                            stop_loss_price = current_price * (1 - symbol_config.stop_loss_percent / 100)
+                        elif result["action"] in ["open_short", "flip_to_short", "hold_short"]:
+                            stop_loss_price = current_price * (1 + symbol_config.stop_loss_percent / 100)
+                except Exception:
+                    pass
+
+                reasoning = outlook.reasoning if config.telegram_include_reasoning else None
+                telegram.send_trade_signal(
+                    symbol=symbol_config.symbol,
+                    signal=interpretation,
+                    action=result["action"],
+                    crypto_name=symbol_config.crypto_name,
+                    current_price=current_price,
+                    entry_price=current_price if result["action"] in ["open_long", "open_short", "flip_to_long", "flip_to_short"] else None,
+                    stop_loss_price=stop_loss_price if config.telegram_include_stop_loss else None,
+                    stop_loss_percent=symbol_config.stop_loss_percent if config.telegram_include_stop_loss else None,
+                    position_size=symbol_config.position_size,
+                    reasoning=reasoning
+                )
+            except Exception as e:
+                logging.warning(f"Telegram notification failed: {e}")
 
     # Summary
     logging.info("\n=== Multi-Symbol Run Summary ===")
