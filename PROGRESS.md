@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-AI-powered cryptocurrency trading bot with multi-provider AI support and Coinbase exchange integration.
+AI-powered cryptocurrency trading bot with multi-provider AI support, multi-exchange integration, and comprehensive trading tools.
 
 ---
 
@@ -11,15 +11,24 @@ AI-powered cryptocurrency trading bot with multi-provider AI support and Coinbas
 ### AI Providers
 | Provider | Config Value | Model | Status |
 |----------|--------------|-------|--------|
-| **Anthropic (Claude)** | `anthropic` | `claude-sonnet-4-20250514` | ✅ Working |
-| **xAI (Grok)** | `xai` or `grok` | `grok-3-latest` | ✅ Working |
-| **DeepSeek** | `deepseek` | `deepseek-chat` | ✅ Available |
+| **Anthropic (Claude)** | `anthropic` | `claude-sonnet-4-20250514` | Working |
+| **xAI (Grok)** | `xai` or `grok` | `grok-3-latest` | Working |
+| **DeepSeek** | `deepseek` | `deepseek-chat` | Available |
 
 ### Exchange Providers
 | Provider | Config Value | Type | Status |
 |----------|--------------|------|--------|
-| **Coinbase** | `coinbase` | Spot | ✅ Working |
-| **Bitunix** | `bitunix` | Futures | ✅ Available |
+| **Coinbase** | `coinbase` | Spot | Working |
+| **Bitunix** | `bitunix` | Futures | Available |
+
+### New Features (v2.0)
+| Feature | Module | Status |
+|---------|--------|--------|
+| **Performance Tracking** | `lib/performance_tracker.py` | Complete |
+| **Real-Time Market Data** | `lib/market_data.py` | Complete |
+| **Health Check Utility** | `health_check.py` | Complete |
+| **Configuration Files** | `lib/config.py` | Complete |
+| **Multi-Symbol Runner** | `runner_multi.py` | Complete |
 
 ---
 
@@ -36,9 +45,21 @@ cp .env.template .env
 # Edit .env with your API keys
 ```
 
-### 3. Run
+### 3. Verify Setup
 ```bash
+python health_check.py
+```
+
+### 4. Run
+```bash
+# Single symbol
 python3 runner.py
+
+# Multi-symbol with config
+python3 runner_multi.py
+
+# Dry run mode
+python3 runner_multi.py --dry-run
 ```
 
 ---
@@ -67,12 +88,114 @@ BITUNIX_API_SECRET=...
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
 
-### Coinbase API Key Setup
-1. Go to **https://cloud.coinbase.com/access/api** (NOT coinbase.com/settings/api)
-2. Create new API key with `view` and `trade` permissions
-3. Download the key and PEM secret
-4. In `.env`, use `\n` for newlines in the PEM secret
-5. Remove any IP whitelist restrictions (or add your IP)
+### Configuration File (Multi-Symbol)
+```bash
+# Create sample config
+python runner_multi.py --create-config
+
+# Copy and customize
+cp configs/config.sample.json configs/config.json
+```
+
+---
+
+## Runners
+
+| Runner | Description | Use Case |
+|--------|-------------|----------|
+| `runner.py` | Single symbol, basic | Simple setups |
+| `runner_with_discord.py` | Single symbol + Discord | With notifications |
+| `runner_multi.py` | Multi-symbol from config | Production use |
+
+### Multi-Symbol Runner Options
+```bash
+python runner_multi.py --help
+python runner_multi.py --config my_config.json
+python runner_multi.py --symbols BTC ETH SOL
+python runner_multi.py --dry-run
+```
+
+---
+
+## New Modules
+
+### Performance Tracker (`lib/performance_tracker.py`)
+Track trading performance with P&L, win rate, and trade history.
+
+```python
+from lib import get_tracker
+
+tracker = get_tracker("my_strategy")
+tracker.create_trade(
+    symbol="BTCUSDT",
+    side="buy",
+    entry_price=95000,
+    exit_price=96000,
+    quantity=0.001
+)
+tracker.print_summary()
+tracker.export_to_csv()
+```
+
+**Features:**
+- Trade history persistence (JSON)
+- P&L calculations (realized/unrealized)
+- Win rate and average win/loss
+- Maximum drawdown tracking
+- Win/loss streak tracking
+- CSV export
+
+### Market Data (`lib/market_data.py`)
+Fetch real-time prices from multiple sources.
+
+```python
+from lib import get_market_data, get_enhanced_market_context
+
+# Get current price data
+data = get_market_data("BTC")
+print(f"BTC: ${data.price:,.2f} ({data.price_change_24h_percent:+.2f}%)")
+
+# Get full context for AI prompts
+context = get_enhanced_market_context("BTC")
+print(context)
+```
+
+**Data Sources:**
+- Coinbase (primary)
+- CoinGecko (fallback)
+- Binance (fallback)
+
+**Includes:**
+- Current price
+- 24h high/low
+- 24h volume
+- Fear & Greed Index
+
+### Health Check (`health_check.py`)
+Verify API connectivity before trading.
+
+```bash
+python health_check.py
+```
+
+**Checks:**
+- Environment variables
+- AI provider connectivity
+- Exchange connectivity
+- Market data services
+- Directory structure
+- Python dependencies
+
+### Configuration (`lib/config.py`)
+JSON-based configuration management.
+
+```python
+from lib import load_config, get_enabled_symbols, validate_config
+
+config = load_config("config.json")
+symbols = get_enabled_symbols(config)
+issues = validate_config(config)
+```
 
 ---
 
@@ -98,18 +221,29 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 ```
 AITradingBot/
-├── runner.py                 # Main trading bot
-├── runner_with_discord.py    # Bot with Discord notifications
+├── runner.py                 # Basic single-symbol runner
+├── runner_with_discord.py    # Runner with Discord notifications
+├── runner_multi.py           # Multi-symbol runner (NEW)
+├── health_check.py           # API connectivity checker (NEW)
+├── batch_runner.sh           # Cron job script
 ├── requirements.txt          # Python dependencies
 ├── .env.template             # Environment template
 ├── .env                      # Your config (gitignored)
+├── configs/                  # Configuration files (NEW)
+│   └── config.sample.json    # Sample configuration
 ├── lib/
 │   ├── ai.py                 # Multi-provider AI module
 │   ├── coinbase_client.py    # Coinbase exchange client
 │   ├── bitunix.py            # Bitunix exchange client
 │   ├── forward_tester.py     # Simulated trading
+│   ├── market_data.py        # Real-time market data (NEW)
+│   ├── performance_tracker.py # P&L tracking (NEW)
+│   ├── config.py             # Configuration management (NEW)
 │   ├── custom_helpers.py     # Trading helpers
-│   └── discord_notifications.py  # Discord webhook
+│   └── discord_notifications.py
+├── logs/                     # Execution logs
+├── ai_responses/             # AI response history
+├── performance_data/         # Trade history (NEW)
 ├── PROGRESS.md               # This file
 └── TODO_COINBASE.md          # Coinbase implementation notes
 ```
@@ -119,7 +253,7 @@ AITradingBot/
 ## Testing
 
 ### Forward Testing (Simulated)
-Edit `runner.py`:
+Edit `runner.py` or use config file:
 ```python
 FORWARD_TESTING_CONFIG = {
     "run_name": RUN_NAME,
@@ -128,25 +262,51 @@ FORWARD_TESTING_CONFIG = {
 }
 ```
 
+Or in `configs/config.json`:
+```json
+{
+  "forward_testing": true,
+  "forward_testing_capital": 10000,
+  "forward_testing_fees": 0.0006
+}
+```
+
 ### Live Trading
-Edit `runner.py`:
 ```python
 FORWARD_TESTING_CONFIG = None
+```
+
+Or in config:
+```json
+{
+  "forward_testing": false
+}
 ```
 
 ---
 
 ## Completed Work
 
+### Original Features
 - [x] Security analysis of original codebase
 - [x] Multi-provider AI support (Anthropic, xAI, DeepSeek)
 - [x] Coinbase Advanced Trade API integration
 - [x] Python 3.9 compatibility fixes
-- [x] Discord notifications module (was missing)
+- [x] Discord notifications module
 - [x] Forward testing mode
 - [x] Exchange provider selection
 - [x] Spot trading support (handles no-shorting gracefully)
 - [x] PEM secret newline handling for .env files
+
+### New Features (v2.0)
+- [x] Performance tracking module (P&L, win rate, history)
+- [x] Real-time market data fetching
+- [x] Health check utility
+- [x] JSON configuration file support
+- [x] Multi-symbol runner
+- [x] Dry-run mode for testing
+- [x] Enhanced AI prompts with market data
+- [x] Updated documentation
 
 ---
 
@@ -177,6 +337,10 @@ FORWARD_TESTING_CONFIG = None
 - xAI: https://console.x.ai/
 - DeepSeek: https://platform.deepseek.com/
 
+### Market Data
+- CoinGecko: https://www.coingecko.com/api/documentation
+- Fear & Greed Index: https://alternative.me/crypto/fear-and-greed-index/
+
 ---
 
 ## Security Notes
@@ -190,4 +354,4 @@ FORWARD_TESTING_CONFIG = None
 
 ---
 
-*Last Updated: 2026-02-03*
+*Last Updated: 2026-02-04*

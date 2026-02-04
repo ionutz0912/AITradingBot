@@ -1,0 +1,67 @@
+{
+  "_comment": "AI Trading Bot Configuration - Copy to config.json and customize",
+  "run_name": "my_trading_strategy",
+  "forward_testing": true,
+  "forward_testing_capital": 10000,
+  "forward_testing_fees": 0.0006,
+  "ai_provider": "anthropic",
+  "exchange_provider": "coinbase",
+  "include_market_data": true,
+  "discord_enabled": false,
+  "discord_include_reasoning": false,
+  "max_positions": 5,
+  "max_daily_trades": 20,
+  "max_drawdown_percent": 20.0,
+  "symbols": [
+    {
+      "_comment": "Bitcoin - Primary trading pair",
+      "symbol": "BTCUSDT",
+      "crypto_name": "Bitcoin",
+      "enabled": true,
+      "position_size": 5.0,
+      "stop_loss_percent": 10.0,
+      "leverage": 1,
+      "margin_mode": "ISOLATION"
+    },
+    {
+      "_comment": "Ethereum - Secondary pair (disabled by default)",
+      "symbol": "ETHUSDT",
+      "crypto_name": "Ethereum",
+      "enabled": false,
+      "position_size": 5.0,
+      "stop_loss_percent": 10.0,
+      "leverage": 1,
+      "margin_mode": "ISOLATION"
+    },
+    {
+      "_comment": "Solana - Higher volatility (disabled by default)",
+      "symbol": "SOLUSDT",
+      "crypto_name": "Solana",
+      "enabled": false,
+      "position_size": "5%",
+      "stop_loss_percent": 15.0,
+      "leverage": 1,
+      "margin_mode": "ISOLATION"
+    },
+    {
+      "_comment": "XRP - (disabled by default)",
+      "symbol": "XRPUSDT",
+      "crypto_name": "XRP",
+      "enabled": false,
+      "position_size": 5.0,
+      "stop_loss_percent": 10.0,
+      "leverage": 1,
+      "margin_mode": "ISOLATION"
+    },
+    {
+      "_comment": "Cardano - (disabled by default)",
+      "symbol": "ADAUSDT",
+      "crypto_name": "Cardano",
+      "enabled": false,
+      "position_size": 5.0,
+      "stop_loss_percent": 10.0,
+      "leverage": 1,
+      "margin_mode": "ISOLATION"
+    }
+  ]
+}
