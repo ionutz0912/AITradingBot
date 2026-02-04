@@ -21,10 +21,19 @@ AI-powered cryptocurrency trading bot with multi-provider AI support (Claude, Gr
         │               └─────────────────┘
         │
         ▼
-┌─────────────────┐     ┌─────────────────┐
-│    dashboard/   │────▶│ Notifications   │
-│  (Flask Web UI) │     │ Discord/Telegram│
-└─────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    dashboard/   │────▶│ Notifications   │────▶│    Database     │
+│  (Flask Web UI) │     │ Discord/Telegram│     │ SQLite (WAL)    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                                               │
+        │                                               │
+        └───────────────────┬───────────────────────────┘
+                            ▼
+                  ┌─────────────────┐
+                  │   Simulation    │
+                  │   Manager       │
+                  │  (Up to 5)      │
+                  └─────────────────┘
 ```
 
 ## Key Modules
@@ -40,7 +49,13 @@ AI-powered cryptocurrency trading bot with multi-provider AI support (Claude, Gr
 | `lib/config.py` | Pydantic-based configuration management |
 | `lib/discord_notifications.py` | Discord webhook notifications |
 | `lib/telegram_notifications.py` | Telegram Bot API notifications |
+| `lib/database.py` | SQLite database with WAL mode (simulations, notifications) |
+| `lib/notification_service.py` | Notification service for managing Telegram notifications |
+| `lib/simulation_manager.py` | Manages up to 5 parallel trading simulations |
+| `lib/simulation_worker.py` | Worker process for running individual simulations |
 | `dashboard/` | Flask-based web monitoring dashboard |
+| `dashboard/routes/simulations.py` | API endpoints for simulation management |
+| `dashboard/routes/notifications.py` | API endpoints for notification management |
 
 ## Configuration
 
@@ -91,7 +106,15 @@ AI-powered cryptocurrency trading bot with multi-provider AI support (Claude, Gr
 1. Routes in `dashboard/routes/` (api.py for JSON, views.py for HTML)
 2. Data aggregation in `dashboard/services/data_service.py`
 3. Templates in `dashboard/templates/`
-4. Run with `python run_dashboard.py --debug`
+4. Run with `python3 run_dashboard.py --debug --port 5001`
+
+### Working with Simulations
+1. Database schema in `lib/database.py` (simulations, simulation_trades tables)
+2. Simulation manager in `lib/simulation_manager.py` (orchestration, max 5 concurrent)
+3. Simulation worker in `lib/simulation_worker.py` (individual simulation process)
+4. API routes in `dashboard/routes/simulations.py`
+5. States: created → running → paused/stopped/completed/error
+6. Each simulation runs in isolated process for stability
 
 ## Environment Variables
 
@@ -110,6 +133,7 @@ Optional:
 | Directory | Purpose |
 |-----------|---------|
 | `configs/` | Trading configuration files |
+| `data/` | SQLite database (simulations, notifications) |
 | `logs/` | Execution logs |
 | `ai_responses/` | AI response history for analysis |
 | `performance_data/` | Trade history and metrics |

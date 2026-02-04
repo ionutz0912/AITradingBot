@@ -44,6 +44,7 @@ logs/
 ai_responses/
 forward_testing_results/
 performance_data/
+data/
 
 # Config files (keep samples)
 configs/config.json

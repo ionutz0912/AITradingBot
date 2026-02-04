@@ -74,7 +74,8 @@ class TelegramNotifier:
             truncated = reasoning[:800] + "..." if len(reasoning) > 800 else reasoning
             message += f"\n*Reasoning:*\n{truncated}"
 
-        return self._send_message(message)
+        result = self._send_message(message)
+        return result["success"]
 
     def send_trade_opened(
         self,
@@ -108,7 +109,8 @@ class TelegramNotifier:
         message += f"*Entry Price:* ${price:,.2f}\n"
         message += f"*Value:* ${quantity * price:,.2f}"
 
-        return self._send_message(message)
+        result = self._send_message(message)
+        return result["success"]
 
     def send_trade_closed(
         self,
@@ -147,7 +149,8 @@ class TelegramNotifier:
         message += f"*Exit:* ${exit_price:,.2f}\n"
         message += f"\n{pnl_emoji} *P&L:* ${pnl:,.2f}"
 
-        return self._send_message(message)
+        result = self._send_message(message)
+        return result["success"]
 
     def send_error(self, run_name: str, error_message: str) -> bool:
         """
@@ -165,7 +168,8 @@ class TelegramNotifier:
         message += f"*Run:* {run_name}\n"
         message += f"*Error:* {error_message[:500]}"
 
-        return self._send_message(message)
+        result = self._send_message(message)
+        return result["success"]
 
     def send_daily_summary(
         self,
@@ -199,9 +203,10 @@ class TelegramNotifier:
         message += f"{pnl_emoji} *P&L:* ${total_pnl:,.2f}\n"
         message += f"*Balance:* ${balance:,.2f}"
 
-        return self._send_message(message)
+        result = self._send_message(message)
+        return result["success"]
 
-    def _send_message(self, text: str, parse_mode: str = "Markdown") -> bool:
+    def _send_message(self, text: str, parse_mode: str = "Markdown") -> dict:
         """
         Send a message via Telegram Bot API.
 
@@ -210,7 +215,8 @@ class TelegramNotifier:
             parse_mode: Parse mode (Markdown or HTML)
 
         Returns:
-            True if message sent successfully
+            Dictionary with success status and message_id if successful:
+            {"success": True, "message_id": "123"} or {"success": False, "error": "..."}
         """
         url = f"{self.api_url}/sendMessage"
         payload = {
@@ -225,15 +231,31 @@ class TelegramNotifier:
 
             result = r.json()
             if result.get("ok"):
-                logging.info("Telegram notification sent")
-                return True
+                message_id = str(result.get("result", {}).get("message_id", ""))
+                logging.info(f"Telegram notification sent (message_id: {message_id})")
+                return {"success": True, "message_id": message_id}
             else:
-                logging.error(f"Telegram API error: {result.get('description')}")
-                return False
+                error = result.get("description", "Unknown error")
+                logging.error(f"Telegram API error: {error}")
+                return {"success": False, "error": error}
 
         except requests.RequestException as e:
             logging.error(f"Telegram notification failed: {e}")
-            return False
+            return {"success": False, "error": str(e)}
+
+    def send_message_raw(self, text: str, parse_mode: str = "Markdown") -> dict:
+        """
+        Send a raw message and return full result details.
+
+        Args:
+            text: Message text
+            parse_mode: Parse mode (Markdown or HTML)
+
+        Returns:
+            Dictionary with success status and message_id if successful:
+            {"success": True, "message_id": "123"} or {"success": False, "error": "..."}
+        """
+        return self._send_message(text, parse_mode)
 
     def test_connection(self) -> bool:
         """

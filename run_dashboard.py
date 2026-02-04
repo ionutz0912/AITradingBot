@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import atexit
 import logging
 import os
 import sys
@@ -23,6 +24,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from dashboard import create_app
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -53,6 +56,11 @@ Examples:
         action="store_true",
         help="Enable Flask debug mode"
     )
+    parser.add_argument(
+        "--no-simulations",
+        action="store_true",
+        help="Disable simulation manager (for testing)"
+    )
 
     args = parser.parse_args()
 
@@ -62,6 +70,35 @@ Examples:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
+    # Initialize simulation manager (unless disabled)
+    sim_manager = None
+    if not args.no_simulations:
+        try:
+            from lib.simulation_manager import init_simulation_manager
+            sim_manager = init_simulation_manager()
+            logger.info("Simulation manager initialized")
+
+            # Register shutdown handler
+            atexit.register(sim_manager.shutdown)
+        except Exception as e:
+            logger.error(f"Failed to initialize simulation manager: {e}")
+            logger.warning("Simulations will not be available")
+
+    # Initialize notification service
+    try:
+        from lib.notification_service import init_notification_service
+        telegram_enabled = bool(
+            os.environ.get("TELEGRAM_BOT_TOKEN") and
+            os.environ.get("TELEGRAM_CHAT_ID")
+        )
+        init_notification_service(enabled=telegram_enabled)
+        if telegram_enabled:
+            logger.info("Notification service initialized with Telegram")
+        else:
+            logger.info("Notification service initialized (Telegram disabled)")
+    except Exception as e:
+        logger.error(f"Failed to initialize notification service: {e}")
+
     # Create and run the app
     app = create_app()
 
@@ -70,6 +107,13 @@ Examples:
     print(f"{'='*50}")
     print(f"  URL: http://{args.host}:{args.port}")
     print(f"  Debug: {'ON' if args.debug else 'OFF'}")
+    print(f"  Simulations: {'ON' if sim_manager else 'OFF'}")
+    print(f"  Telegram: {'ON' if telegram_enabled else 'OFF'}")
+    print(f"{'='*50}")
+    print(f"  Pages:")
+    print(f"    - Dashboard:     http://{args.host}:{args.port}/")
+    print(f"    - Simulations:   http://{args.host}:{args.port}/simulations")
+    print(f"    - Notifications: http://{args.host}:{args.port}/notifications")
     print(f"{'='*50}\n")
 
     app.run(

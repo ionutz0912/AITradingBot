@@ -98,8 +98,16 @@ def get_summary():
         "positions": service.get_positions(),
         "ai_history": service.get_ai_history(5),
         "fear_greed": service.get_fear_greed(),
-        "balance": service.get_account_balance()
+        "balance": service.get_account_balance(),
+        "simulations": service.get_simulations_summary()
     })
+
+
+@api_bp.route("/simulations-summary")
+def get_simulations_summary():
+    """Get aggregated performance data from all simulations."""
+    service = get_data_service()
+    return jsonify(service.get_simulations_summary())
 
 
 @api_bp.route("/positions/close", methods=["POST"])

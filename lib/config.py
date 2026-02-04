@@ -23,6 +23,48 @@ CONFIG_DIR = "configs"
 DEFAULT_CONFIG_FILE = "config.json"
 
 
+class SimulationConfig(BaseModel):
+    """Configuration for a trading simulation."""
+    name: str = Field(description="Display name for the simulation")
+    symbol: str = Field(description="Trading symbol (e.g., BTCUSDT)")
+    crypto_name: str = Field(description="Human-readable name (e.g., Bitcoin)")
+
+    # Capital and position settings
+    initial_capital: float = Field(default=10000.0, ge=100, description="Initial capital for simulation")
+    position_size: Union[str, float] = Field(
+        default=5.0,
+        description="Position size: USD amount (5.0) or percentage ('10%')"
+    )
+    fees: float = Field(default=0.0006, ge=0, description="Fee rate per trade")
+
+    # AI settings
+    ai_provider: str = Field(default="anthropic", description="AI provider: anthropic, xai, grok, deepseek")
+
+    # Risk settings
+    stop_loss_percent: Optional[float] = Field(
+        default=10.0,
+        ge=0.1,
+        le=50.0,
+        description="Stop loss percentage from entry price"
+    )
+    max_daily_trades: int = Field(default=10, ge=1, le=100, description="Maximum trades per day")
+
+    # Notification settings
+    telegram_enabled: bool = Field(default=True, description="Send Telegram notifications for this simulation")
+    telegram_include_reasoning: bool = Field(default=False, description="Include AI reasoning in notifications")
+
+    # Execution settings
+    check_interval_seconds: int = Field(default=300, ge=60, le=3600, description="Interval between market checks")
+
+    @field_validator('ai_provider')
+    @classmethod
+    def validate_ai_provider(cls, v):
+        valid = ['anthropic', 'xai', 'grok', 'deepseek']
+        if v.lower() not in valid:
+            raise ValueError(f'ai_provider must be one of: {valid}')
+        return v.lower()
+
+
 class SymbolConfig(BaseModel):
     """Configuration for a single trading symbol."""
     symbol: str = Field(description="Trading symbol (e.g., BTCUSDT)")

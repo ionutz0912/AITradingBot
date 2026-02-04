@@ -3,7 +3,7 @@
  * Auto-refresh logic and UI updates
  */
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
+const REFRESH_INTERVAL = 10000; // 10 seconds for live updates
 const API_BASE = '/api';
 
 /**
@@ -468,6 +468,138 @@ function updateTimestamp() {
 }
 
 /**
+ * Update simulations performance section
+ */
+function updateSimulations(data) {
+    if (!data || !data.aggregate) {
+        return;
+    }
+
+    const agg = data.aggregate;
+
+    // Update aggregate stats
+    document.getElementById('sim-running').textContent = agg.running || 0;
+    document.getElementById('sim-total-trades').textContent = agg.total_trades || 0;
+
+    const winRateEl = document.getElementById('sim-win-rate');
+    winRateEl.textContent = formatPercent(agg.win_rate, false);
+    winRateEl.className = 'text-xl font-bold ' + getValueClass((agg.win_rate || 0) - 50);
+
+    const pnlEl = document.getElementById('sim-total-pnl');
+    pnlEl.textContent = formatCurrency(agg.total_pnl);
+    pnlEl.className = 'text-xl font-bold ' + getValueClass(agg.total_pnl);
+
+    document.getElementById('sim-profit-factor').textContent =
+        agg.profit_factor !== null ? agg.profit_factor.toFixed(2) : '--';
+
+    document.getElementById('sim-total-fees').textContent = formatCurrency(agg.total_fees);
+
+    // Update per-simulation list
+    updateSimulationList(data.simulations || []);
+}
+
+/**
+ * Update per-simulation list (safe DOM manipulation)
+ */
+function updateSimulationList(simulations) {
+    const container = document.getElementById('sim-list');
+    clearContainer(container);
+
+    // Filter to show only active simulations
+    const activeSimulations = simulations.filter(s =>
+        ['running', 'paused'].includes(s.status)
+    );
+
+    if (activeSimulations.length === 0) {
+        container.appendChild(createTextElement('p', 'No simulations running', 'text-gray-500 text-sm'));
+        return;
+    }
+
+    for (const sim of activeSimulations) {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-700 rounded-lg p-4';
+
+        // Header row
+        const header = document.createElement('div');
+        header.className = 'flex justify-between items-center mb-3';
+
+        // Left side - name and status
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'flex items-center gap-2';
+
+        leftDiv.appendChild(createTextElement('span', sim.name, 'font-semibold'));
+
+        // Status badge
+        const statusBadge = document.createElement('span');
+        const statusColors = {
+            'running': 'bg-green-600',
+            'paused': 'bg-yellow-600',
+            'stopped': 'bg-gray-600',
+            'error': 'bg-red-600'
+        };
+        statusBadge.className = `text-xs px-2 py-0.5 rounded font-medium ${statusColors[sim.status] || 'bg-gray-600'}`;
+        statusBadge.textContent = sim.status.toUpperCase();
+        leftDiv.appendChild(statusBadge);
+
+        // Symbol badge
+        if (sim.symbol) {
+            leftDiv.appendChild(createTextElement('span', sim.symbol, 'text-xs text-gray-400 ml-2'));
+        }
+
+        header.appendChild(leftDiv);
+
+        // Right side - P&L
+        const stats = sim.stats || {};
+        const pnlDiv = document.createElement('div');
+        pnlDiv.className = 'text-right';
+
+        const pnlValue = document.createElement('span');
+        pnlValue.className = 'font-bold text-lg ' + getValueClass(stats.total_pnl || 0);
+        pnlValue.textContent = formatCurrency(stats.total_pnl || 0);
+        pnlDiv.appendChild(pnlValue);
+
+        header.appendChild(pnlDiv);
+        card.appendChild(header);
+
+        // Stats row
+        const statsRow = document.createElement('div');
+        statsRow.className = 'grid grid-cols-4 gap-4 text-sm';
+
+        // Trades
+        const tradesDiv = document.createElement('div');
+        tradesDiv.appendChild(createTextElement('span', 'Trades: ', 'text-gray-400'));
+        tradesDiv.appendChild(document.createTextNode(
+            `${stats.winning_trades || 0}W / ${stats.losing_trades || 0}L`
+        ));
+        statsRow.appendChild(tradesDiv);
+
+        // Win Rate
+        const winRateDiv = document.createElement('div');
+        winRateDiv.appendChild(createTextElement('span', 'Win Rate: ', 'text-gray-400'));
+        const winRateSpan = document.createElement('span');
+        winRateSpan.className = getValueClass((stats.win_rate || 0) - 50);
+        winRateSpan.textContent = formatPercent(stats.win_rate, false);
+        winRateDiv.appendChild(winRateSpan);
+        statsRow.appendChild(winRateDiv);
+
+        // Avg Win
+        const avgWinDiv = document.createElement('div');
+        avgWinDiv.appendChild(createTextElement('span', 'Avg Win: ', 'text-gray-400'));
+        avgWinDiv.appendChild(createTextElement('span', formatCurrency(stats.avg_win || 0), 'text-profit'));
+        statsRow.appendChild(avgWinDiv);
+
+        // Avg Loss
+        const avgLossDiv = document.createElement('div');
+        avgLossDiv.appendChild(createTextElement('span', 'Avg Loss: ', 'text-gray-400'));
+        avgLossDiv.appendChild(createTextElement('span', formatCurrency(stats.avg_loss || 0), 'text-loss'));
+        statsRow.appendChild(avgLossDiv);
+
+        card.appendChild(statsRow);
+        container.appendChild(card);
+    }
+}
+
+/**
  * Fetch all dashboard data
  */
 async function fetchDashboardData() {
@@ -485,6 +617,7 @@ async function fetchDashboardData() {
         updatePositions(data.positions);
         updateAISignals(data.ai_history);
         updateTrades(data.trades);
+        updateSimulations(data.simulations);
         updateTimestamp();
 
     } catch (error) {

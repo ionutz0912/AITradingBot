@@ -43,6 +43,10 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-4">
+                    <nav class="flex gap-3">
+                        <a href="/simulations" class="text-blue-400 hover:text-blue-300 text-sm font-medium">Simulations</a>
+                        <a href="/notifications" class="text-blue-400 hover:text-blue-300 text-sm font-medium">Notifications</a>
+                    </nav>
                     <span id="last-updated" class="text-sm text-gray-500">--</span>
                     <div id="refresh-indicator" class="w-2 h-2 rounded-full bg-green-500 pulse-subtle" title="Auto-refresh active"></div>
                 </div>
@@ -130,6 +134,52 @@
                 </div>
             </div>
 
+            <!-- Simulations Performance Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg lg:col-span-2 xl:col-span-3">
+                <h2 class="text-lg font-semibold mb-4 flex items-center justify-between">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Simulations Performance
+                    </span>
+                    <a href="/simulations" class="text-sm text-blue-400 hover:text-blue-300">Manage &rarr;</a>
+                </h2>
+
+                <!-- Aggregate Stats -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 mb-4" id="sim-aggregate-stats">
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Running</p>
+                        <p id="sim-running" class="text-xl font-bold text-profit">-</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Total Trades</p>
+                        <p id="sim-total-trades" class="text-xl font-bold">-</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Win Rate</p>
+                        <p id="sim-win-rate" class="text-xl font-bold">-</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Total P&L</p>
+                        <p id="sim-total-pnl" class="text-xl font-bold">-</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Profit Factor</p>
+                        <p id="sim-profit-factor" class="text-xl font-bold">-</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-gray-400 text-xs">Total Fees</p>
+                        <p id="sim-total-fees" class="text-xl font-bold text-yellow-500">-</p>
+                    </div>
+                </div>
+
+                <!-- Per-Simulation List -->
+                <div id="sim-list" class="space-y-3">
+                    <p class="text-gray-500 text-sm">No simulations running</p>
+                </div>
+            </div>
+
             <!-- AI Signals Card -->
             <div class="bg-gray-800 rounded-lg p-6 shadow-lg lg:col-span-2 xl:col-span-3">
                 <h2 class="text-lg font-semibold mb-4 flex items-center">
@@ -175,7 +225,7 @@
 
         <!-- Footer -->
         <footer class="mt-8 text-center text-gray-500 text-sm">
-            <p>AI Trading Bot Dashboard &bull; Auto-refreshes every 30 seconds</p>
+            <p>AI Trading Bot Dashboard &bull; Auto-refreshes every 10 seconds</p>
         </footer>
     </div>
 

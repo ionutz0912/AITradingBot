@@ -637,6 +637,122 @@ class DashboardDataService:
         return {"error": "Failed to fetch Fear & Greed Index"}
 
 
+    def get_simulations_summary(self) -> Dict[str, Any]:
+        """
+        Get aggregated performance data from all simulations.
+
+        Returns:
+            Dict with aggregate metrics and per-simulation breakdown
+        """
+        try:
+            from lib.database import list_simulations, get_simulation_stats, get_simulation_trades
+            from lib.simulation_manager import get_simulation_manager
+
+            manager = get_simulation_manager()
+            simulations = manager.list_simulations()
+
+            # Initialize aggregate metrics
+            aggregate = {
+                "total_simulations": len(simulations),
+                "running": 0,
+                "paused": 0,
+                "stopped": 0,
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "win_rate": 0,
+                "total_pnl": 0,
+                "total_fees": 0,
+                "avg_win": 0,
+                "avg_loss": 0,
+            }
+
+            # Per-simulation data
+            simulation_data = []
+            all_wins = []
+            all_losses = []
+
+            for sim in simulations:
+                # Count by status
+                if sim["status"] == "running":
+                    aggregate["running"] += 1
+                elif sim["status"] == "paused":
+                    aggregate["paused"] += 1
+                elif sim["status"] == "stopped":
+                    aggregate["stopped"] += 1
+
+                # Get stats for this simulation
+                stats = get_simulation_stats(sim["id"])
+
+                # Add to aggregates
+                aggregate["total_trades"] += stats.get("total_trades", 0)
+                aggregate["winning_trades"] += stats.get("winning_trades", 0)
+                aggregate["losing_trades"] += stats.get("losing_trades", 0)
+                aggregate["total_pnl"] += stats.get("total_pnl", 0)
+                aggregate["total_fees"] += stats.get("total_fees", 0)
+
+                if stats.get("avg_win"):
+                    all_wins.append(stats["avg_win"])
+                if stats.get("avg_loss"):
+                    all_losses.append(stats["avg_loss"])
+
+                # Get recent trades for this simulation
+                recent_trades = get_simulation_trades(sim["id"], limit=5)
+
+                simulation_data.append({
+                    "id": sim["id"],
+                    "name": sim["name"],
+                    "status": sim["status"],
+                    "symbol": sim["config"].get("symbol", ""),
+                    "stats": stats,
+                    "recent_trades": recent_trades
+                })
+
+            # Calculate aggregate win rate
+            if aggregate["total_trades"] > 0:
+                aggregate["win_rate"] = round(
+                    (aggregate["winning_trades"] / aggregate["total_trades"]) * 100, 2
+                )
+
+            # Calculate aggregate averages
+            if all_wins:
+                aggregate["avg_win"] = round(sum(all_wins) / len(all_wins), 2)
+            if all_losses:
+                aggregate["avg_loss"] = round(sum(all_losses) / len(all_losses), 2)
+
+            # Round totals
+            aggregate["total_pnl"] = round(aggregate["total_pnl"], 2)
+            aggregate["total_fees"] = round(aggregate["total_fees"], 2)
+
+            # Calculate profit factor
+            gross_profit = sum(w for w in all_wins if w > 0) if all_wins else 0
+            gross_loss = abs(sum(l for l in all_losses if l < 0)) if all_losses else 0
+            aggregate["profit_factor"] = round(gross_profit / gross_loss, 2) if gross_loss > 0 else None
+
+            return {
+                "aggregate": aggregate,
+                "simulations": simulation_data,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
+        except Exception as e:
+            logging.warning(f"Failed to get simulations summary: {e}")
+            return {
+                "aggregate": {
+                    "total_simulations": 0,
+                    "running": 0,
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "win_rate": 0,
+                    "total_pnl": 0,
+                    "total_fees": 0,
+                },
+                "simulations": [],
+                "error": str(e)
+            }
+
+
 # Singleton instance for the dashboard
 _data_service: Optional[DashboardDataService] = None
 

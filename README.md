@@ -10,9 +10,11 @@ AI-powered cryptocurrency trading bot with multi-provider AI support and multi-e
 - **Real-Time Market Data**: Fetches prices from CoinGecko, Coinbase, Binance
 - **Performance Tracking**: Track P&L, win rate, and trade history
 - **Forward Testing**: Simulate trades without risking real capital
+- **Simulation Management**: Run up to 5 parallel trading simulations with start/stop/pause controls
+- **Database Integration**: SQLite with WAL mode for reliable data persistence
 - **Web Dashboard**: Real-time monitoring with Flask-based web interface
 - **Discord Notifications**: Get alerts for trade signals
-- **Telegram Notifications**: Get alerts via Telegram Bot API
+- **Telegram Notifications**: Get alerts via Telegram Bot API with notification history
 - **Health Check**: Verify API connectivity before trading
 
 ---
@@ -165,20 +167,26 @@ Monitor your trading bot in real-time with the built-in web dashboard.
 
 ```bash
 # Basic usage (localhost:5000)
-python run_dashboard.py
+python3 run_dashboard.py
 
-# Custom port
-python run_dashboard.py --port 8080
+# Custom port (useful if 5000 is in use by AirPlay on macOS)
+python3 run_dashboard.py --port 5001
 
 # Allow external connections
-python run_dashboard.py --host 0.0.0.0
+python3 run_dashboard.py --host 0.0.0.0
 
 # Debug mode
-python run_dashboard.py --debug
+python3 run_dashboard.py --debug
+
+# Disable simulations (for testing)
+python3 run_dashboard.py --no-simulations
 ```
 
-### Dashboard Features
+Access the dashboard at `http://127.0.0.1:5000` (or your chosen port).
 
+### Dashboard Pages
+
+#### Main Dashboard (`/`)
 - **Status Overview**: Bot configuration, mode, enabled symbols
 - **Performance Metrics**: P&L, win rate, total trades
 - **Trade History**: Recent trades with entry/exit prices
@@ -188,8 +196,21 @@ python run_dashboard.py --debug
 - **Fear & Greed Index**: Market sentiment indicator
 - **Account Balance**: Current account balance
 
+#### Simulations Page (`/simulations`)
+- **Simulation Management**: Start, stop, pause, and resume up to 5 parallel simulations
+- **Real-time Monitoring**: Live status, P&L, and trade count for each simulation
+- **Configuration**: Customize symbol, position size, and strategy for each simulation
+- **Performance Tracking**: View individual simulation metrics and statistics
+
+#### Notifications Page (`/notifications`)
+- **Notification History**: View all sent Telegram notifications
+- **Settings**: Configure Telegram bot token and chat ID
+- **Test Notifications**: Send test messages to verify configuration
+- **Filter & Search**: Filter notifications by type and search by content
+
 ### API Endpoints
 
+#### Core Endpoints
 | Endpoint | Description |
 |----------|-------------|
 | `/api/status` | Bot configuration and status |
@@ -201,6 +222,106 @@ python run_dashboard.py --debug
 | `/api/fear-greed` | Fear & Greed Index |
 | `/api/balance` | Account balance |
 | `/api/summary` | Combined summary (all data) |
+
+#### Simulation Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/simulations` | GET | List all simulations |
+| `/api/simulations` | POST | Create new simulation |
+| `/api/simulations/<id>` | GET | Get simulation details |
+| `/api/simulations/<id>` | DELETE | Delete simulation |
+| `/api/simulations/<id>/start` | POST | Start simulation |
+| `/api/simulations/<id>/stop` | POST | Stop simulation |
+| `/api/simulations/<id>/pause` | POST | Pause simulation |
+| `/api/simulations/<id>/resume` | POST | Resume simulation |
+
+#### Notification Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/notifications` | GET | List notification history |
+| `/api/notifications/settings` | GET | Get notification settings |
+| `/api/notifications/settings` | POST | Update notification settings |
+| `/api/notifications/test` | POST | Send test notification |
+
+---
+
+## Simulation Management
+
+Run multiple trading simulations in parallel to test different strategies, symbols, and configurations.
+
+### Features
+
+- **Parallel Simulations**: Run up to 5 simulations concurrently
+- **Process Isolation**: Each simulation runs in its own process for stability
+- **Real-time Control**: Start, stop, pause, and resume simulations on-the-fly
+- **Performance Tracking**: Monitor P&L, trade count, and win rate for each simulation
+- **Persistent Storage**: Simulation data stored in SQLite database
+
+### Using Simulations
+
+#### Via Web Dashboard
+
+1. Navigate to `http://127.0.0.1:5001/simulations`
+2. Click "Create New Simulation"
+3. Configure:
+   - **Symbol**: Trading pair (e.g., BTCUSDT, ETHUSDT)
+   - **Position Size**: Amount per trade (e.g., $5)
+   - **AI Provider**: anthropic, xai, or deepseek
+   - **Exchange**: coinbase or bitunix
+4. Click "Start" to begin the simulation
+5. Monitor real-time progress and statistics
+6. Use "Pause", "Resume", or "Stop" controls as needed
+
+#### Via API
+
+```bash
+# Create simulation
+curl -X POST http://127.0.0.1:5001/api/simulations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "BTCUSDT",
+    "position_size": 5.0,
+    "ai_provider": "anthropic",
+    "exchange_provider": "coinbase"
+  }'
+
+# Start simulation
+curl -X POST http://127.0.0.1:5001/api/simulations/sim_123/start
+
+# Pause simulation
+curl -X POST http://127.0.0.1:5001/api/simulations/sim_123/pause
+
+# Resume simulation
+curl -X POST http://127.0.0.1:5001/api/simulations/sim_123/resume
+
+# Stop simulation
+curl -X POST http://127.0.0.1:5001/api/simulations/sim_123/stop
+
+# Get simulation status
+curl http://127.0.0.1:5001/api/simulations/sim_123
+
+# List all simulations
+curl http://127.0.0.1:5001/api/simulations
+```
+
+### Simulation States
+
+| State | Description |
+|-------|-------------|
+| `created` | Simulation created but not started |
+| `running` | Actively executing trades |
+| `paused` | Temporarily paused, can be resumed |
+| `stopped` | Stopped, cannot be restarted |
+| `completed` | Finished successfully |
+| `error` | Encountered an error |
+
+### Database Schema
+
+Simulations are stored in `data/trading_bot.db` with the following tables:
+
+- **simulations**: Simulation configuration and state
+- **simulation_trades**: Individual trades per simulation
+- **notifications**: Notification history
 
 ---
 
@@ -248,14 +369,30 @@ AITradingBot/
 │   ├── config.py            # Configuration management
 │   ├── custom_helpers.py    # Trading helpers
 │   ├── discord_notifications.py  # Discord alerts
-│   └── telegram_notifications.py # Telegram alerts
+│   ├── telegram_notifications.py # Telegram alerts
+│   ├── database.py          # SQLite database management
+│   ├── notification_service.py   # Notification service
+│   ├── simulation_manager.py     # Simulation orchestration
+│   └── simulation_worker.py      # Simulation worker process
 ├── dashboard/               # Web dashboard
 │   ├── app.py               # Flask application factory
 │   ├── routes/              # API and view routes
+│   │   ├── api.py           # Core API endpoints
+│   │   ├── views.py         # HTML page routes
+│   │   ├── simulations.py   # Simulation management API
+│   │   └── notifications.py # Notification management API
 │   ├── services/            # Data aggregation services
 │   ├── templates/           # HTML templates
+│   │   ├── index.html       # Main dashboard
+│   │   ├── simulations.html # Simulations page
+│   │   └── notifications.html # Notifications page
 │   └── static/              # CSS, JS assets
+│       └── js/
+│           ├── dashboard.js      # Main dashboard JS
+│           ├── simulations.js    # Simulations page JS
+│           └── notifications.js  # Notifications page JS
 ├── configs/                 # Configuration files
+├── data/                    # SQLite database directory
 ├── logs/                    # Execution logs
 ├── ai_responses/            # AI response history
 └── performance_data/        # Trade history

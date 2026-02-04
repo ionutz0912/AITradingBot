@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - AITrading Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'profit': '#10b981',
+                        'loss': '#ef4444',
+                        'neutral': '#6b7280',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .status-sent { color: #10b981; }
+        .status-failed { color: #ef4444; }
+        .status-pending { color: #f59e0b; }
+        .status-skipped { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <a href="/" class="text-gray-400 hover:text-white text-sm mb-2 inline-block">&larr; Back to Dashboard</a>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white">Notification History</h1>
+                    <p class="text-gray-400 mt-1">View and manage Telegram notification delivery</p>
+                </div>
+                <button onclick="sendTestNotification()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                    Send Test
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Total</p>
+                <p id="stat-total" class="text-2xl font-bold">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Sent</p>
+                <p id="stat-sent" class="text-2xl font-bold text-profit">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Failed</p>
+                <p id="stat-failed" class="text-2xl font-bold text-loss">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Pending</p>
+                <p id="stat-pending" class="text-2xl font-bold text-yellow-500">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Failed (24h)</p>
+                <p id="stat-recent-failures" class="text-2xl font-bold text-loss">-</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Status</label>
+                    <select id="filter-status" onchange="loadNotifications()" class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5">
+                        <option value="">All</option>
+                        <option value="sent">Sent</option>
+                        <option value="failed">Failed</option>
+                        <option value="pending">Pending</option>
+                        <option value="skipped">Skipped</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Type</label>
+                    <select id="filter-type" onchange="loadNotifications()" class="bg-gray-700 border border-gray-600 rounded px-3 py-1.5">
+                        <option value="">All</option>
+                        <option value="signal">Signal</option>
+                        <option value="trade_opened">Trade Opened</option>
+                        <option value="trade_closed">Trade Closed</option>
+                        <option value="error">Error</option>
+                        <option value="daily_summary">Daily Summary</option>
+                        <option value="simulation_status">Simulation Status</option>
+                        <option value="test">Test</option>
+                    </select>
+                </div>
+                <div class="flex-grow"></div>
+                <div class="self-end">
+                    <button onclick="loadNotifications()" class="bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded transition-colors">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Table -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-3 px-4">Time</th>
+                            <th class="text-left py-3 px-4">Type</th>
+                            <th class="text-left py-3 px-4">Content</th>
+                            <th class="text-left py-3 px-4">Status</th>
+                            <th class="text-right py-3 px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notifications-table">
+                        <tr>
+                            <td colspan="5" class="text-center py-8 text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex justify-between items-center p-4 border-t border-gray-700">
+                <div class="text-sm text-gray-400">
+                    Showing <span id="showing-count">0</span> notifications
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-prev" onclick="prevPage()" disabled class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <button id="btn-next" onclick="nextPage()" disabled class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Notification Details</h2>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="detail-content">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulations - AITrading Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'profit': '#10b981',
+                        'loss': '#ef4444',
+                        'neutral': '#6b7280',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .status-running { color: #10b981; }
+        .status-paused { color: #f59e0b; }
+        .status-stopped { color: #6b7280; }
+        .status-pending { color: #3b82f6; }
+        .status-error { color: #ef4444; }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <a href="/" class="text-gray-400 hover:text-white text-sm mb-2 inline-block">&larr; Back to Dashboard</a>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white">Simulation Management</h1>
+                    <p class="text-gray-400 mt-1">Run up to 5 parallel trading simulations</p>
+                </div>
+                <button onclick="openCreateModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                    + New Simulation
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Total</p>
+                <p id="stat-total" class="text-2xl font-bold">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Running</p>
+                <p id="stat-running" class="text-2xl font-bold text-profit">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Paused</p>
+                <p id="stat-paused" class="text-2xl font-bold text-yellow-500">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Available Slots</p>
+                <p id="stat-available" class="text-2xl font-bold text-blue-400">-</p>
+            </div>
+        </div>
+
+        <!-- Simulations Grid -->
+        <div id="simulations-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-12 text-gray-500">
+                Loading simulations...
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="create-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-xl font-bold">Create New Simulation</h2>
+                <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+
+            <!-- Preset Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Start from Preset</label>
+                <select id="preset-select" onchange="loadPreset(this.value)" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    <option value="">-- Select a preset --</option>
+                </select>
+            </div>
+
+            <form id="simulation-form" onsubmit="submitSimulation(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <!-- Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Name *</label>
+                        <input type="text" name="name" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Symbol -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Symbol *</label>
+                        <select name="symbol" required
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                            <option value="BTCUSDT">BTCUSDT (Bitcoin)</option>
+                            <option value="ETHUSDT">ETHUSDT (Ethereum)</option>
+                            <option value="SOLUSDT">SOLUSDT (Solana)</option>
+                            <option value="XRPUSDT">XRPUSDT (XRP)</option>
+                            <option value="ADAUSDT">ADAUSDT (Cardano)</option>
+                        </select>
+                    </div>
+
+                    <!-- Initial Capital -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Initial Capital ($)</label>
+                        <input type="number" name="initial_capital" value="10000" min="100" step="100"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    </div>
+
+                    <!-- Position Size -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Position Size ($ or %)</label>
+                        <input type="text" name="position_size" value="5.0" placeholder="5.0 or 5%"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    </div>
+
+                    <!-- AI Provider -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">AI Provider</label>
+                        <select name="ai_provider"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="xai">xAI (Grok)</option>
+                            <option value="deepseek">DeepSeek</option>
+                        </select>
+                    </div>
+
+                    <!-- Stop Loss -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Stop Loss (%)</label>
+                        <input type="number" name="stop_loss_percent" value="10" min="0.1" max="50" step="0.1"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    </div>
+
+                    <!-- Check Interval -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Check Interval (seconds)</label>
+                        <select name="check_interval_seconds"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                            <option value="180">3 minutes</option>
+                            <option value="300" selected>5 minutes</option>
+                            <option value="600">10 minutes</option>
+                            <option value="900">15 minutes</option>
+                            <option value="1800">30 minutes</option>
+                            <option value="3600">1 hour</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Daily Trades -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Max Daily Trades</label>
+                        <input type="number" name="max_daily_trades" value="10" min="1" max="100"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    </div>
+                </div>
+
+                <!-- Telegram Settings -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">Telegram Notifications</h3>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="telegram_enabled" checked class="w-4 h-4 rounded">
+                            <span>Enable Notifications</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="telegram_include_reasoning" class="w-4 h-4 rounded">
+                            <span>Include AI Reasoning</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeCreateModal()" class="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium transition-colors">
+                        Create Simulation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Simulation Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="detail-title" class="text-xl font-bold">Simulation Details</h2>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="detail-content">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/simulations.js') }}"></script>
+</body>
+</html>
