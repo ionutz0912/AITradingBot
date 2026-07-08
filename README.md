@@ -545,3 +545,6 @@ MIT License - see LICENSE file
 ## Disclaimer
 
 This software is for educational and research purposes only. It is not financial advice. Trading cryptocurrency carries significant risk. The developers are not responsible for any financial losses incurred through use of this software. Always do your own research and consider consulting a financial advisor.
+
+---
+> **ARCHIVED 2026-07-09 — tuition paid:** forked-bot evaluation (Feb 2026) — learned to security-review strangers' trading code before running it
